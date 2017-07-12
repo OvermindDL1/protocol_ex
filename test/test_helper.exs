@@ -10,6 +10,7 @@ defmodule Testering do
     def empty(a)
     def succ(a)
     def add(a, b)
+    def addi(a, b) when is_integer(b)
 
     def a_fallback(a), do: inspect(a)
   end
@@ -23,6 +24,7 @@ defmodule Testering1 do
     def empty(_), do: 0
     def succ(i), do: i+1
     def add(i, b), do: i+b
+    def addi(i, b), do: i+b
 
     def a_fallback(i), do: "Integer: #{i}"
   end
@@ -39,12 +41,14 @@ defmodule Testering2 do
     def empty(_), do: {Vwoop, 0}
     def succ({Vwoop, i}), do: {Vwoop, i+1}
     def add({Vwoop, i}, b), do: {Vwoop, i+b}
+    def addi({Vwoop, i}, b), do: {Vwoop, i+b}
   end
 
   defimplEx MineOlStruct, %MyStruct{}, for: Blah do
     def empty(_), do: %MyStruct{a: 0}
     def succ(s), do: %{s | a: s.a+1}
     def add(s, b), do: %{s | a: s.a+b}
+    def addi(s, b), do: %{s | a: s.a+b}
   end
 end
 

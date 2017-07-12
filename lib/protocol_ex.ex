@@ -170,7 +170,7 @@ defmodule ProtocolEx do
 
 
   defp decompose_spec_element(returned, elem)
-  defp decompose_spec_element(returned, {:def, meta, [{name, name_meta, noargs}]}) when is_atom(noargs), do: decompose_spec_element(returned, {:def, meta, [{name, name_meta, []}]})
+  # defp decompose_spec_element(returned, {:def, meta, [{name, name_meta, noargs}]}) when is_atom(noargs), do: decompose_spec_element(returned, {:def, meta, [{name, name_meta, []}]})
   defp decompose_spec_element(returned, {:def, _meta, [head]} = elem) do
     {name, args_length} = decompose_spec_head(head)
     callbacks = [{name, args_length, elem} | returned.callbacks]
@@ -186,6 +186,9 @@ defmodule ProtocolEx do
 
 
   defp decompose_spec_head(head)
+  defp decompose_spec_head({:when, _when_meta, [head, _guard]}) do
+    decompose_spec_head(head)
+  end
   defp decompose_spec_head({name, _name_meta, args}) when is_atom(name) and is_list(args) do
     {name, length(args)}
   end
@@ -224,15 +227,27 @@ defmodule ProtocolEx do
   defp load_abstract_from_impls(pname, abstract, [], returning) do
     case abstract do
       {name, arity, ast_head} ->
+        args = get_args_from_head(ast_head)
+        first_arg = hd(args)
+        rest_args = tl(args)
+        rest_args =
+          Enum.map(rest_args, fn arg ->
+            quote do
+              _ = unquote(arg)
+            end
+          end)
         body =
           {:raise, [context: Elixir, import: Kernel],
            [{:%, [],
              [{:__aliases__, [alias: false], [:ProtocolEx, :UnimplementedProtocolEx]},
               {:%{}, [],
-               [proto: pname, name: name, arity: arity, value: {:value, [], nil}]
+               [proto: pname, name: name, arity: arity, value: first_arg]
                }]}]}
-        head_args = [{:value, [], nil} | tl(Enum.map(1..arity, fn _ -> {:_, [], nil} end))]
-        ast_head = replace_head_args_with(ast_head, head_args)
+        body =
+          quote do
+            unquote_splicing(rest_args)
+            unquote(body)
+          end
         catch_all = append_body_to_head(ast_head, body)
         :lists.reverse(returning, [catch_all])
       {_name, _arity, _ast_head, ast_fallback}  ->
@@ -270,10 +285,17 @@ defmodule ProtocolEx do
   end
 
   defp get_args_from_head(ast_head)
+  defp get_args_from_head({:def, _meta, [{:when, _when_meta, [{_name, _name_meta, args}, _guard]}]}) do
+    # Enum.map(List.wrap(args), fn
+    #   {name, _, scope} = ast when is_atom(name) and is_atom(scope) -> ast
+    #   end)
+    args
+  end
   defp get_args_from_head({:def, _meta, [{_name, _name_meta, args}]}) do
-    Enum.map(args, fn
-      {name, _, scope} = ast when is_atom(name) and is_atom(scope) -> ast
-      end)
+    # Enum.map(List.wrap(args), fn
+    #   {name, _, scope} = ast when is_atom(name) and is_atom(scope) -> ast
+    #   end)
+    args
   end
 
   defp bind_matcher_to_args(matcher, args, returned \\ [])
@@ -289,6 +311,9 @@ defmodule ProtocolEx do
   end
 
   defp replace_head_args_with(ast_head, head_args)
+  defp replace_head_args_with({:def, meta, [{:when, when_meta, [{name, name_meta, _args}, guards]} | rest]}, head_args) do
+    {:def, meta, [{:when, when_meta, [{name, name_meta, head_args}, guards]} | rest]}
+  end
   defp replace_head_args_with({:def, meta, [{name, name_meta, _args} | rest]}, head_args) do
     {:def, meta, [{name, name_meta, head_args} | rest]}
   end
@@ -304,6 +329,12 @@ defmodule ProtocolEx do
   end
 
   defp add_guard_to_head(ast_head, guard)
+  defp add_guard_to_head({:def, meta, [{:when, when_meta, [head, old_guard]} | rest]}, guard) do
+    {:def, meta, [
+      {:when, when_meta, [head, {:and, [], [old_guard, guard]}]}
+      | rest
+      ]}
+  end
   defp add_guard_to_head({:def, meta, [head | rest]}, guard) do
     {:def, meta, [
       {:when, [], [head, guard]}
