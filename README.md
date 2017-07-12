@@ -6,7 +6,7 @@ Performs matching for protocol implentations instead of being limited to certain
 
 ## Installation
 
-[Available in Hex](https://hex.pm/packages) with [Documentation](https://hexdocs.pm/protocol_ex), the package can be installed
+[Available in Hex](https://hex.pm/packages/protocol_ex) with [Documentation](https://hexdocs.pm/protocol_ex), the package can be installed
 by adding `:protocol_ex` to your list of dependencies in `mix.exs`:
 
 ```elixir
