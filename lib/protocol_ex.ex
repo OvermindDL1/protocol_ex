@@ -1,25 +1,39 @@
 defmodule ProtocolEx do
   @moduledoc """
-  Documentation for ProtocolEx.
+  Matcher protocol control module
   """
 
 
   defmodule InvalidProtocolSpecification do
+    @moduledoc """
+    This is raised when a protocol definition is invalid.
+
+    If a new feature is wanted in the protocol definition, please raise an issue or submit a PR.
+    """
     defexception [ast: nil]
     def message(exc), do: "Unhandled specification node:  #{inspect exc.ast}"
   end
 
   defmodule DuplicateSpecification do
+    @moduledoc """
+    Only one implementation for a given callback per implementaiton is allowed at this time.
+    """
     defexception [name: nil, arity: 0]
     def message(exc), do: "Duplicate specification node:  #{inspect exc.name}/#{inspect exc.arity}"
   end
 
   defmodule UnimplementedProtocolEx do
+    @moduledoc """
+    Somehow a given implementation was consolidated without actually having a required callback specified.
+    """
     defexception [proto: nil, name: nil, arity: 0, value: nil]
     def message(exc), do: "Unimplemented Protocol of `#{exc.prot}` at #{inspect exc.name}/#{inspect exc.arity} of value: #{inspect exc.value}"
   end
 
   defmodule MissingRequiredProtocolDefinition do
+    @moduledoc """
+    The given implementation is missing a required callback from the protocol.
+    """
     defexception [proto: nil, impl: nil, name: nil, arity: -1]
     def message(exc) do
       impl = String.replace_prefix(to_string(exc.impl), to_string(exc.proto)<>".", "")
@@ -29,6 +43,7 @@ defmodule ProtocolEx do
 
 
   defmodule Spec do
+    @moduledoc false
     defstruct [callbacks: []]
   end
 
@@ -37,12 +52,7 @@ defmodule ProtocolEx do
 
 
   @doc """
-
-  ## Examples
-
-      # iex> ProtocolEx.defprotocolEx
-      # :world
-
+  Define a protocol behaviour.
   """
   defmacro defprotocolEx(name, [do: body]) do
     # parsed_name = get_atom_name(name)
@@ -59,6 +69,9 @@ defmodule ProtocolEx do
 
 
 
+  @doc """
+  Implement a protocol based on a matcher specification
+  """
   defmacro defimplEx(impl_name, matcher, [for: for_name], [do: body]) do
     name = get_atom_name(for_name)
     name = __CALLER__.aliases[name] || name
@@ -69,6 +82,7 @@ defmodule ProtocolEx do
     end
   end
 
+  @doc false
   def defimplEx_do(impl_name, matcher, [for: name], [do: body], caller_env) do
     name = get_atom_name(name)
     desc_name = get_desc_name(name)
@@ -95,6 +109,9 @@ defmodule ProtocolEx do
 
 
 
+  @doc """
+  Resolve a protocol into a final ready-to-use-module
+  """
   defmacro resolveProtocolEx(orig_name, impls) when is_list(impls) do
     name = get_atom_name(orig_name)
     name = __CALLER__.aliases[name] || name
@@ -115,6 +132,7 @@ defmodule ProtocolEx do
     end
   end
 
+  @doc false
   defmacro resolveProtocolEx_do(name, impls) when is_list(impls) do
     name = get_atom_name(name)
     desc_name = get_desc_name(name)
@@ -275,13 +293,13 @@ defmodule ProtocolEx do
     {:def, meta, [{name, name_meta, head_args} | rest]}
   end
 
-  def get_guards_from_matchers(matchers, returned \\ [])
-  def get_guards_from_matchers([], []), do: true
-  def get_guards_from_matchers([], returned), do: Enum.reduce(:lists.reverse(returned), fn(ast, acc) -> {:and, [], [ast, acc]} end)
-  def get_guards_from_matchers([{:when, _when_meta, [_bindings, guard]} | matchers], returned) do
+  defp get_guards_from_matchers(matchers, returned \\ [])
+  defp get_guards_from_matchers([], []), do: true
+  defp get_guards_from_matchers([], returned), do: Enum.reduce(:lists.reverse(returned), fn(ast, acc) -> {:and, [], [ast, acc]} end)
+  defp get_guards_from_matchers([{:when, _when_meta, [_bindings, guard]} | matchers], returned) do
     get_guards_from_matchers(matchers, [guard | returned])
   end
-  def get_guards_from_matchers([_when_ast | matchers], returned) do
+  defp get_guards_from_matchers([_when_ast | matchers], returned) do
     get_guards_from_matchers(matchers, returned)
   end
 

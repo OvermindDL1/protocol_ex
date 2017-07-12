@@ -57,9 +57,9 @@ defmodule TesteringResolved do # This thing could easily become a compiler plugi
     MineOlStruct,
   ])
 
-  0                 = Blah.empty(42)
-  {Vwoop, 0}        = Blah.empty({Vwoop, 42})
-  %MyStruct{a: 0}   = Blah.empty(%MyStruct{a: 42})
+  0                  = Blah.empty(42)
+  {Vwoop, 0}         = Blah.empty({Vwoop, 42})
+  %MyStruct{a: 0}    = Blah.empty(%MyStruct{a: 42})
 
   43                 = Blah.succ(42)
   {Vwoop, 43}        = Blah.succ({Vwoop, 42})
