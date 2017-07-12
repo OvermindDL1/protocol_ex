@@ -15,13 +15,21 @@ defmodule ProtocolEx do
   end
 
   defmodule UnimplementedProtocolEx do
-    defexception [name: nil, arity: 0, value: nil]
-    def message(exc), do: "Unimplemented Protocol at #{inspect exc.name}/#{inspect exc.arity} of value: #{inspect exc.value}"
+    defexception [proto: nil, name: nil, arity: 0, value: nil]
+    def message(exc), do: "Unimplemented Protocol of `#{exc.prot}` at #{inspect exc.name}/#{inspect exc.arity} of value: #{inspect exc.value}"
+  end
+
+  defmodule MissingRequiredProtocolDefinition do
+    defexception [proto: nil, impl: nil, name: nil, arity: -1]
+    def message(exc) do
+      impl = String.replace_prefix(to_string(exc.impl), to_string(exc.proto)<>".", "")
+      "On Protocol `#{exc.proto}` missing a required protocol callback on `#{impl}` of:  #{exc.name}/#{exc.arity}"
+    end
   end
 
 
   defmodule Spec do
-    defstruct [abstracts: []]
+    defstruct [callbacks: []]
   end
 
 
@@ -53,10 +61,11 @@ defmodule ProtocolEx do
 
   defmacro defimplEx(impl_name, matcher, [for: for_name], [do: body]) do
     name = get_atom_name(for_name)
+    name = __CALLER__.aliases[name] || name
     desc_name = get_desc_name(name)
     quote do
       require unquote(desc_name)
-      ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(for_name))], [do: unquote(Macro.escape(body))], __ENV__)
+      ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], __ENV__)
     end
   end
 
@@ -74,20 +83,35 @@ defmodule ProtocolEx do
         quote do
           def __spec__, do: unquote(desc_name).spec()
         end
-      | verify_valid_spec_on_body(spec, body)
+      | List.wrap(body)
       ]}
+    # impl_quoted |> Macro.to_string() |> IO.puts
+    if Code.ensure_loaded?(impl_name) do
+      :code.purge(impl_name)
+    end
     Module.create(impl_name, impl_quoted, Macro.Env.location(caller_env))
-    nil
+    verify_valid_spec_on_module(name, spec, impl_name)
   end
 
 
 
   defmacro resolveProtocolEx(orig_name, impls) when is_list(impls) do
     name = get_atom_name(orig_name)
+    name = __CALLER__.aliases[name] || name
     desc_name = get_desc_name(name)
+    impls = Enum.map(impls, &get_atom_name/1)
+    impls = Enum.map(impls, &get_atom_name_with(name, &1))
+    impls = Enum.map(impls, &get_atom_name/1)
+    requireds = Enum.map([desc_name | impls], fn req ->
+      {:require, [], [req]}
+      # quote do
+      #   require unquote(req)
+      # end
+    end)
     quote do
-      require unquote(desc_name)
-      ProtocolEx.resolveProtocolEx_do(unquote(orig_name), unquote(impls))
+      __silence_alias_warnings__ = unquote(orig_name)
+      unquote_splicing(requireds)
+      ProtocolEx.resolveProtocolEx_do(unquote(name), unquote(impls))
     end
   end
 
@@ -95,16 +119,16 @@ defmodule ProtocolEx do
     name = get_atom_name(name)
     desc_name = get_desc_name(name)
     spec = desc_name.spec()
-    impls = Enum.map(impls, &get_atom_name/1)
-    impls = Enum.map(impls, &get_atom_name_with(name, &1))
-    impls = Enum.map(impls, &get_atom_name/1)
     impl_quoted = {:__block__, [],
       [ quote do def __protocolEx__, do: unquote(Macro.escape(spec)) end
-      | Enum.flat_map(:lists.reverse(spec.abstracts), &load_abstract_from_impls(name, &1, impls))
+      | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(name, &1, impls))
       ]}
-    impl_quoted |> Macro.to_string() |> IO.puts
+    # impl_quoted |> Macro.to_string() |> IO.puts
+    if Code.ensure_loaded?(name) do
+      :code.purge(name)
+    end
     Module.create(name, impl_quoted, Macro.Env.location(__CALLER__))
-    nil
+    :ok
   end
 
 
@@ -129,55 +153,102 @@ defmodule ProtocolEx do
 
   defp decompose_spec_element(returned, elem)
   defp decompose_spec_element(returned, {:def, meta, [{name, name_meta, noargs}]}) when is_atom(noargs), do: decompose_spec_element(returned, {:def, meta, [{name, name_meta, []}]})
-  defp decompose_spec_element(returned, {:def, _meta, [{name, _name_meta, args}]} = elem) when is_atom(name) and is_list(args) do
-    abstracts = [{name, length(args), elem} | returned.abstracts]
-    %{returned | abstracts: abstracts}
+  defp decompose_spec_element(returned, {:def, _meta, [head]} = elem) do
+    {name, args_length} = decompose_spec_head(head)
+    callbacks = [{name, args_length, elem} | returned.callbacks]
+    %{returned | callbacks: callbacks}
+  end
+  defp decompose_spec_element(returned, {:def, meta, [head, _body]}=elem) do
+    {name, args_length} = decompose_spec_head(head)
+    head = {:def, meta, [head]}
+    callbacks = [{name, args_length, head, elem} | returned.callbacks]
+    %{returned | callbacks: callbacks}
   end
   defp decompose_spec_element(_returned, unhandled_elem), do: raise %InvalidProtocolSpecification{ast: unhandled_elem}
 
 
+  defp decompose_spec_head(head)
+  defp decompose_spec_head({name, _name_meta, args}) when is_atom(name) and is_list(args) do
+    {name, length(args)}
+  end
+  defp decompose_spec_head(head), do: raise %InvalidProtocolSpecification{ast: head}
+
+
   defp verify_valid_spec(spec) do
-    abstracts = Enum.uniq_by(spec.abstracts, fn {name, arity, _elem} -> {name, arity} end)
-    if length(spec.abstracts) !== length(abstracts) do
-      [{name, arity, _elem}|_] = spec.abstracts -- abstracts
+    callbacks = Enum.uniq_by(spec.callbacks, fn
+      {name, arity, _elem} -> {name, arity}
+      {name, arity, _elem_head, _elem} -> {name, arity}
+    end)
+    if length(spec.callbacks) !== length(callbacks) do
+      [{name, arity, _elem}|_] = spec.callbacks -- callbacks
       raise %DuplicateSpecification{name: name, arity: arity}
     end
     spec
   end
 
 
-  defp verify_valid_spec_on_body(spec, {:__block__, _, body}), do: verify_valid_spec_on_body(spec, body)
-  defp verify_valid_spec_on_body(spec, body) when not is_list(body), do: verify_valid_spec_on_body(spec, [body])
-  defp verify_valid_spec_on_body(_spec, body) do
-    # TODO:  Quit being lazy and finish this check
-    body
+  defp verify_valid_spec_on_module(proto, spec, module) do
+    spec.callbacks
+    |> Enum.map(fn
+      {name, arity, _} ->
+        if :erlang.function_exported(module, name, arity) do
+          :ok
+        else
+          raise  %MissingRequiredProtocolDefinition{proto: proto, impl: module, name: name, arity: arity}
+        end
+      {_name, _arity, _, _} -> :ok
+    end)
+    :ok
   end
 
 
   defp load_abstract_from_impls(pname, abstract, impls, returning \\ [])
-  defp load_abstract_from_impls(_pname_, {name, arity, ast_head}, [], returning) when is_atom(name) and is_integer(arity) do
-    body =
-      {:raise, [context: Elixir, import: Kernel],
-       [{:%, [],
-         [{:__aliases__, [alias: false], [:ProtocolEx, :UnimplementedProtocolEx]},
-          {:%{}, [],
-           [name: name, arity: arity, value: {:value, [], nil}]
-           }]}]}
-    head_args = [{:value, [], nil} | tl(Enum.map(1..arity, fn _ -> {:_, [], nil} end))]
-    ast_head = replace_head_args_with(ast_head, head_args)
-    catch_all = append_body_to_head(ast_head, body)
-    :lists.reverse(returning, [catch_all])
+  defp load_abstract_from_impls(pname, abstract, [], returning) do
+    case abstract do
+      {name, arity, ast_head} ->
+        body =
+          {:raise, [context: Elixir, import: Kernel],
+           [{:%, [],
+             [{:__aliases__, [alias: false], [:ProtocolEx, :UnimplementedProtocolEx]},
+              {:%{}, [],
+               [proto: pname, name: name, arity: arity, value: {:value, [], nil}]
+               }]}]}
+        head_args = [{:value, [], nil} | tl(Enum.map(1..arity, fn _ -> {:_, [], nil} end))]
+        ast_head = replace_head_args_with(ast_head, head_args)
+        catch_all = append_body_to_head(ast_head, body)
+        :lists.reverse(returning, [catch_all])
+      {_name, _arity, _ast_head, ast_fallback}  ->
+        :lists.reverse(returning, [ast_fallback])
+    end
   end
-  defp load_abstract_from_impls(pname, {name, arity, ast_head}=abstract, [impl | impls], returning) when is_atom(name) and is_integer(arity) do
-    matchers = List.wrap(impl.__matcher__())
-    args = get_args_from_head(ast_head)
-    body = build_body_call_with_args(impl, name, args)
-    head_args = bind_matcher_to_args(matchers, args)
-    ast_head = replace_head_args_with(ast_head, head_args)
-    guard = get_guards_from_matchers(matchers)
-    ast_head = if(guard == true, do: ast_head, else: add_guard_to_head(ast_head, guard))
-    ast = append_body_to_head(ast_head, body)
-    load_abstract_from_impls(pname, abstract, impls, [ast | returning])
+  defp load_abstract_from_impls(pname, abstract, [impl | impls], returning) do
+    case abstract do
+      {name, arity, ast_head} ->
+        if Enum.any?(impl.module_info()[:exports], fn {^name, ^arity} -> true; _ -> false end) do
+          {name, ast_head}
+        else
+          raise %MissingRequiredProtocolDefinition{proto: pname, impl: impl, name: name, arity: arity}
+        end
+      {name, arity, ast_head, _ast_fallback}  ->
+        if Enum.any?(impl.module_info()[:exports], fn {^name, ^arity} -> true; _ -> false end) do
+          {name, ast_head}
+        else
+          :skip
+        end
+    end
+    |> case do
+      :skip -> load_abstract_from_impls(pname, abstract, impls, returning)
+      {name, ast_head} ->
+        matchers = List.wrap(impl.__matcher__())
+        args = get_args_from_head(ast_head)
+        body = build_body_call_with_args(impl, name, args)
+        head_args = bind_matcher_to_args(matchers, args)
+        ast_head = replace_head_args_with(ast_head, head_args)
+        guard = get_guards_from_matchers(matchers)
+        ast_head = if(guard == true, do: ast_head, else: add_guard_to_head(ast_head, guard))
+        ast = append_body_to_head(ast_head, body)
+        load_abstract_from_impls(pname, abstract, impls, [ast | returning])
+    end
   end
 
   defp get_args_from_head(ast_head)
