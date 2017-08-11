@@ -1,3 +1,4 @@
+ExUnit.configure(exclude: [bench: true])
 ExUnit.start()
 
 

@@ -27,7 +27,7 @@ defmodule ProtocolEx do
     Somehow a given implementation was consolidated without actually having a required callback specified.
     """
     defexception [proto: nil, name: nil, arity: 0, value: nil]
-    def message(exc), do: "Unimplemented Protocol of `#{exc.prot}` at #{inspect exc.name}/#{inspect exc.arity} of value: #{inspect exc.value}"
+    def message(exc), do: "Unimplemented Protocol of `#{exc.proto}` at #{inspect exc.name}/#{inspect exc.arity} of value: #{inspect exc.value}"
   end
 
   defmodule MissingRequiredProtocolDefinition do
@@ -58,6 +58,15 @@ defmodule ProtocolEx do
     # parsed_name = get_atom_name(name)
     # desc_name = get_desc_name(parsed_name)
     desc_name = get_atom_name_with(name, @desc_name)
+    body =
+      case body do
+        {:__block__, meta, lines} ->
+          lines = Enum.map(lines, fn
+            {type, _, _} = ast when type in [:def] -> ast
+            ast -> Macro.expand(ast, __CALLER__)
+          end)
+          {:__block__, meta, lines}
+      end
     spec = decompose_spec(body)
     spec = verify_valid_spec(spec)
     quote do
@@ -72,30 +81,51 @@ defmodule ProtocolEx do
   @doc """
   Implement a protocol based on a matcher specification
   """
-  defmacro defimplEx(impl_name, matcher, [for: for_name], [do: body]) do
+  defmacro defimplEx(impl_name, matcher, [{:for, for_name} | opts], [do: body]) do
     name = get_atom_name(for_name)
     name = __CALLER__.aliases[name] || name
     desc_name = get_desc_name(name)
     quote do
       require unquote(desc_name)
-      ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], __ENV__)
+      ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), __ENV__)
     end
   end
 
   @doc false
-  def defimplEx_do(impl_name, matcher, [for: name], [do: body], caller_env) do
+  def defimplEx_do(impl_name, matcher, [for: name], [do: body], opts, caller_env) do
     name = get_atom_name(name)
     desc_name = get_desc_name(name)
     impl_name = get_atom_name(impl_name)
     impl_name = get_impl_name(name, impl_name)
     impl_name = get_atom_name(impl_name)
     spec = desc_name.spec()
+
     impl_quoted = {:__block__, [],
       [ quote do
           def __matcher__, do: unquote(Macro.escape(matcher))
         end,
         quote do
           def __spec__, do: unquote(desc_name).spec()
+        end,
+        case opts[:inline] do
+          nil -> quote do def __inlined__(_), do: nil end
+          # :all -> quote do def __inlined__(_), do: true end
+          funs when is_list(funs) ->
+            funs
+            |> Enum.map(fn {fun, arity} ->
+              Macro.prewalk(body, [], fn
+                ({:def, _, [{^fun, _, bindings}, _]} = ast, acc) when length(bindings) === arity ->
+                  {ast, [ast | acc]}
+                ({:def, _, [{:when, _, [{^fun, _, bindings}, _]}, _]} = ast, acc) when length(bindings) === arity ->
+                  {ast, [ast | acc]}
+                (ast, acc) ->
+                  {ast, acc}
+              end)
+              |> case do
+                {_body, ast} -> quote do def __inlined__({unquote(fun), unquote(arity)}), do: unquote(Macro.escape(ast)) end
+              end
+            end)
+            |> Enum.reverse([quote do def __inlined__(_), do: nil end])
         end
       | List.wrap(body)
       ]}
@@ -272,15 +302,33 @@ defmodule ProtocolEx do
     |> case do
       :skip -> load_abstract_from_impls(pname, abstract, impls, returning)
       {name, ast_head} ->
-        matchers = List.wrap(impl.__matcher__())
-        args = get_args_from_head(ast_head)
-        body = build_body_call_with_args(impl, name, args)
-        head_args = bind_matcher_to_args(matchers, args)
-        ast_head = replace_head_args_with(ast_head, head_args)
-        guard = get_guards_from_matchers(matchers)
-        ast_head = if(guard == true, do: ast_head, else: add_guard_to_head(ast_head, guard))
-        ast = append_body_to_head(ast_head, body)
-        load_abstract_from_impls(pname, abstract, impls, [ast | returning])
+          matchers = List.wrap(impl.__matcher__())
+          args = get_args_from_head(ast_head)
+          arity = length(args)
+          if :erlang.function_exported(impl, :__inlined__, 1) do
+            impl.__inlined__({name, arity})
+          else
+            nil
+          end
+          |> case do
+            nil ->
+              body = build_body_call_with_args(impl, name, args)
+              head_args = bind_matcher_to_args(matchers, args)
+              ast_head = replace_head_args_with(ast_head, head_args)
+              guard = get_guards_from_matchers(matchers)
+              ast_head = if(guard == true, do: ast_head, else: add_guard_to_head(ast_head, guard))
+              ast = append_body_to_head(ast_head, body)
+              load_abstract_from_impls(pname, abstract, impls, [ast | returning])
+            inlined_impls when is_list(inlined_impls) ->
+              guard = get_guards_from_matchers(matchers)
+              inlined_impls =
+                if(guard == true) do
+                  inlined_impls = Enum.map(inlined_impls, &add_guard_to_head(&1, guard))
+                  load_abstract_from_impls(pname, abstract, impls, inlined_impls ++ returning)
+                else
+                  load_abstract_from_impls(pname, abstract, impls, inlined_impls ++ returning)
+                end
+          end
     end
   end
 
@@ -350,4 +398,71 @@ defmodule ProtocolEx do
 
   defp append_body_to_head(ast_head, body)
   defp append_body_to_head({:def, meta, args}, body), do: {:def, meta, args++[[do: body]]}
+end
+
+if Mix.env() === :test do
+  # MyDecimal for Numbers
+  defimpl Numbers.Protocols.Addition, for: Tuple do
+    def add({MyDecimal, _s0, :sNaN, _e0}, {MyDecimal, _s1, _c1, _e1}), do: throw :error
+    def add({MyDecimal, _s0, _c0, _e0}, {MyDecimal, _s1, :sNaN, _e1}), do: throw :error
+    def add({MyDecimal, _s0, :qNaN, _e0} = d0, {MyDecimal, _s1, _c1, _e1}), do: d0
+    def add({MyDecimal, _s0, _c0, _e0}, {MyDecimal, _s1, :qNaN, _e1} = d1), do: d1
+    def add({MyDecimal, s0, :inf, e0} = d0, {MyDecimal, s0, :inf, e1} = d1), do: if(e0 > e1, do: d0, else: d1)
+    def add({MyDecimal, _s0, :inf, _e0}, {MyDecimal, _s1, :inf, _e1}), do: throw :error
+    def add({MyDecimal, _s0, :inf, _e0} = d0, {MyDecimal, _s1, _c1, _e1}), do: d0
+    def add({MyDecimal, _s0, _c0, _e0}, {MyDecimal, _s1, :inf, _e1} = d1), do: d1
+    def add({MyDecimal, s0, c0, e0}, {MyDecimal, s1, c1, e1}) do
+      {c0, c1} =
+        cond do
+          e0 === e1 -> {c0, c1}
+          e0 > e1 -> {c0 * pow10(e0 - e1), c1}
+          true -> {c0, c1 * pow10(e1 - e0)}
+        end
+      c = s0 * c0 + s1 * c1
+      e = Kernel.min(e0, e1)
+      s =
+        cond do
+          c > 0 -> 1
+          c < 0 -> -1
+          s0 == -1 and s1 == -1 -> -1
+          # s0 != s1 and get_context().rounding == :floor -> -1
+          true -> 1
+        end
+      {s, Kernel.abs(c), e}
+    end
+    def mult({MyDecimal, s0, c0, e0}, {MyDecimal, s1, c1, e1}) do
+      s = s0 * s1
+      {s, c0 * c1, e0 + e1}
+    end
+    def add_id(_num), do: {MyDecimal, 1, 0, 0}
+
+    _pow10_max = Enum.reduce 0..104, 1, fn int, acc ->
+      def pow10(unquote(int)), do: unquote(acc)
+      def base10?(unquote(acc)), do: true
+      acc * 10
+    end
+    def pow10(num) when num > 104, do: pow10(104) * pow10(num - 104)
+  end
+
+  defimpl Numbers.Protocols.Multiplication, for: Tuple do
+    def mult({MyDecimal, _s0, :sNaN, _e0}, {MyDecimal, _s1, _c1, _e1}), do: throw :error
+    def mult({MyDecimal, _s0, _c0, _e0}, {MyDecimal, _s1, :sNaN, _e1}), do: throw :error
+    def mult({MyDecimal, _s0, :qNaN, _e0}, {MyDecimal, _s1, _c1, _e1}), do: throw :error
+    def mult({MyDecimal, _s0, _c0, _e0}, {MyDecimal, _s1, :qNaN, _e1}), do: throw :error
+    def mult({MyDecimal, _s0, 0, _e0}, {MyDecimal, _s1, :inf, _e1}), do: throw :error
+    def mult({MyDecimal, _s0, :inf, _e0}, {MyDecimal, _s1, 0, _e1}), do: throw :error
+    def mult({MyDecimal, s0, :inf, e0}, {MyDecimal, s1, _, e1}) do
+      s = s0 * s1
+      {s, :inf, e0+e1}
+    end
+    def mult({MyDecimal, s0, _, e0}, {MyDecimal, s1, :inf, e1}) do
+      s = s0 * s1
+      {s, :inf, e0+e1}
+    end
+    def mult({MyDecimal, s0, c0, e0}, {MyDecimal, s1, c1, e1}) do
+      s = s0 * s1
+      {s, c0 * c1, e0 + e1}
+    end
+    def mult_id(_num), do: {MyDecimal, 1, 1, 0}
+  end
 end

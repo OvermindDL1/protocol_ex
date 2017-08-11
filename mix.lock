@@ -1,2 +1,9 @@
-%{"earmark": {:hex, :earmark, "1.2.2", "f718159d6b65068e8daeef709ccddae5f7fdc770707d82e7d126f584cd925b74", [:mix], [], "hexpm"},
-  "ex_doc": {:hex, :ex_doc, "0.16.2", "3b3e210ebcd85a7c76b4e73f85c5640c011d2a0b2f06dcdf5acdb2ae904e5084", [:mix], [{:earmark, "~> 1.1", [hex: :earmark, repo: "hexpm", optional: false]}], "hexpm"}}
+%{"benchee": {:hex, :benchee, "0.9.0", "433d946b0e4755e186fe564568ead4f593b0d15337fcffa95ed7d5b8a6612670", [], [{:deep_merge, "~> 0.1", [hex: :deep_merge, repo: "hexpm", optional: false]}], "hexpm"},
+  "coerce": {:hex, :coerce, "1.0.1", "211c27386315dc2894ac11bc1f413a0e38505d808153367bd5c6e75a4003d096", [], [], "hexpm"},
+  "cortex": {:hex, :cortex, "0.2.0", "014fcc76553508417c97203a6c1770adb36ae6446330ee05169869b5cd290cd7", [], [{:exfswatch, "~> 0.4", [hex: :exfswatch, repo: "hexpm", optional: false]}], "hexpm"},
+  "decimal": {:hex, :decimal, "1.3.1", "157b3cedb2bfcb5359372a7766dd7a41091ad34578296e951f58a946fcab49c6", [], [], "hexpm"},
+  "deep_merge": {:hex, :deep_merge, "0.1.1", "c27866a7524a337b6a039eeb8dd4f17d458fd40fbbcb8c54661b71a22fffe846", [], [], "hexpm"},
+  "earmark": {:hex, :earmark, "1.2.2", "f718159d6b65068e8daeef709ccddae5f7fdc770707d82e7d126f584cd925b74", [:mix], [], "hexpm"},
+  "ex_doc": {:hex, :ex_doc, "0.16.2", "3b3e210ebcd85a7c76b4e73f85c5640c011d2a0b2f06dcdf5acdb2ae904e5084", [:mix], [{:earmark, "~> 1.1", [hex: :earmark, repo: "hexpm", optional: false]}], "hexpm"},
+  "exfswatch": {:hex, :exfswatch, "0.4.2", "d88a63b5c2f8f040230d22010588ff73286fd1aef32564115afa3051eaa4391d", [], [], "hexpm"},
+  "numbers": {:hex, :numbers, "5.1.0", "afa96e166c5da52b4ff7beaee0716a398cf3e4d10769c795f016de2163bbf7ba", [], [{:coerce, "~> 1.0", [hex: :coerce, repo: "hexpm", optional: false]}, {:decimal, "~> 1.3.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm"}}
