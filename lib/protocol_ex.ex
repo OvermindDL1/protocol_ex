@@ -49,13 +49,14 @@ defmodule ProtocolEx do
 
 
   @desc_name :"$ProtocolEx_description$"
+  @desc_attr :protocol_ex_desc
 
 
   @doc """
   Define a protocol behaviour.
   """
   defmacro defprotocolEx(name, [do: body]) do
-    # parsed_name = get_atom_name(name)
+    parsed_name = get_atom_name(name)
     # desc_name = get_desc_name(parsed_name)
     desc_name = get_atom_name_with(name, @desc_name)
     body =
@@ -71,6 +72,8 @@ defmodule ProtocolEx do
     spec = verify_valid_spec(spec)
     quote do
       defmodule unquote(desc_name) do
+        Module.register_attribute(__MODULE__, unquote(@desc_attr), persist: true)
+        @protocol_ex_desc unquote(parsed_name)
         def spec, do: unquote(Macro.escape(spec))
       end
     end
@@ -107,6 +110,15 @@ defmodule ProtocolEx do
         quote do
           def __spec__, do: unquote(desc_name).spec()
         end,
+        quote do
+          Module.register_attribute(__MODULE__, :protocol_ex, persist: true)
+        end,
+        quote do
+          @protocol_ex unquote(name)
+        end,
+        quote do
+          Module.register_attribute(__MODULE__, :priority, persist: true)
+        end,
         case opts[:inline] do
           nil -> quote do def __inlined__(_), do: nil end
           # :all -> quote do def __inlined__(_), do: true end
@@ -139,16 +151,126 @@ defmodule ProtocolEx do
 
 
 
+  def consolidate_all(opts \\ []) do
+    opts
+    |> get_base_paths()
+    |> Enum.flat_map(fn path ->
+      path
+      |> Path.join("*.beam")
+      |> Path.wildcard()
+      |> case do beam_paths ->
+        beam_paths
+        |> Enum.flat_map(fn path -> # Oh what I'd give for a monadic `do` right about now...  >.>
+          case :beam_lib.chunks(path |> to_charlist(), [:attributes]) do
+            {:ok, {_mod, chunks}} ->
+              case get_in(chunks, [:attributes, @desc_attr]) do
+                [proto] -> [proto]
+                _ -> []
+              end
+            _err -> []
+          end
+        end)
+        |> case do protocols ->
+          beam_paths
+          |> Enum.flat_map(fn path ->
+            case :beam_lib.chunks(path |> to_charlist(), [:attributes]) do
+              {:ok, {mod, chunks}} ->
+                attributes = chunks[:attributes]
+                case attributes[:protocol_ex] do
+                  nil -> []
+                  protos ->
+                    protos
+                    |> Enum.any?(&Enum.member?(protocols, &1))
+                    |> if do
+                      priority = hd(attributes[:priority] || [0])
+                      data = {mod, priority, protos}
+                      [data]
+                    else
+                      []
+                    end
+                end
+              _err -> []
+            end
+          end)
+          |> case do impls ->
+            protocols
+            |> Enum.map(fn proto_name ->
+              consolidate(proto_name, impls: impls)
+            end)
+          end
+        end
+      end
+    end)
+  end
+
   @doc """
-  Resolve a protocol into a final ready-to-use-module
+  Resolve a protocol into a final ready-to-use-module based on already-compiled names sorted by priority
   """
-  defmacro resolveProtocolEx(orig_name, impls) when is_list(impls) do
+  def consolidate(proto_name, opts \\ []) do
+    impls =
+      case opts[:impls] do
+        nil ->
+          opts
+          |> get_base_paths()
+          |> Enum.flat_map(fn path ->
+            path
+            |> Path.join("*.beam")
+            |> Path.wildcard()
+          end)
+          |> Enum.flat_map(fn path ->
+            case :beam_lib.chunks(path |> to_charlist(), [:attributes]) do
+              {:ok, {mod, chunks}} ->
+                attributes = chunks[:attributes]
+                case attributes[:protocol_ex] do
+                  nil -> []
+                  protos ->
+                    if Enum.member?(protos, proto_name) do
+                      priority = hd(attributes[:priority] || [0])
+                      data = {mod, priority, protos}
+                      [data]
+                    else
+                      []
+                    end
+                end
+                _err -> []
+            end
+          end)
+        impls -> Enum.filter(impls, &(Enum.member?(elem(&1, 2), proto_name)))
+      end
+      |> Enum.sort_by(fn {name, prio, _} -> {prio, to_string(name)} end, &>=/2) # Sort by priority, then by binary name
+      |> Enum.map(&elem(&1, 0))
+    proto_desc = Module.concat(proto_name, @desc_name)
+    spec =
+      case proto_desc.spec() do
+        %Spec{} = spec -> spec
+        err -> throw {:invalid_spec, err}
+      end
+
+    impl_quoted = {:__block__, [],
+      [ quote do def __protocolEx__, do: unquote(Macro.escape(spec)) end
+      | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(proto_name, &1, impls))
+      ]}
+    # impl_quoted |> Macro.to_string() |> IO.puts
+    if Code.ensure_loaded?(proto_name) do
+      :code.purge(proto_name)
+    end
+    Module.create(proto_name, impl_quoted, Macro.Env.location(__ENV__))
+    proto_name
+  end
+
+  @doc """
+  Resolve a protocol into a final ready-to-use-module based on implementation names
+
+  If priority_sorted is true then it sorts based on the impl priority, else it uses the defined order
+  """
+  defmacro resolveProtocolEx(orig_name, impls, priority_sorted \\ false) when is_list(impls) do
     name = get_atom_name(orig_name)
     name = __CALLER__.aliases[name] || name
     desc_name = get_desc_name(name)
     impls = Enum.map(impls, &get_atom_name/1)
     impls = Enum.map(impls, &get_atom_name_with(name, &1))
     impls = Enum.map(impls, &get_atom_name/1)
+    impls = if(priority_sorted, do: Enum.sort_by(impls, &(&1.module_info()[:attributes][:priority] || 0), &>=/2), else: impls)
     requireds = Enum.map([desc_name | impls], fn req ->
       {:require, [], [req]}
       # quote do
@@ -177,6 +299,57 @@ defmodule ProtocolEx do
     end
     Module.create(name, impl_quoted, Macro.Env.location(__CALLER__))
     :ok
+  end
+
+
+  defp get_base_paths(opts) do
+    case opts[:ebin_root] do
+      nil -> :code.get_path()
+      paths -> List.wrap(paths)
+    end
+  end
+
+  defp get_protocolex_modules(paths)
+
+  defp get_modules_from_beam_with_attribute_filter(paths, attribute, value) do
+    List.wrap(paths)
+    |> Enum.flat_map(fn path ->
+      path
+      |> Path.join("*.beam")
+      |> Path.wildcard()
+    end)
+    |> throw
+  end
+
+
+  defp get_impls_from_compiled(base_name) do
+    throw {:test, base_name}
+  end
+
+  defp beam_protocol(protocol) do
+    chunk_ids = [:abstract_code, :attributes, :compile_info, 'ExDc']
+    opts = [:allow_missing_chunks]
+    case :beam_lib.chunks(beam_file(protocol), chunk_ids, opts) do
+      {:ok, {^protocol, [{:abstract_code, {_raw, abstract_code}},
+                         {:attributes, attributes},
+                         {:compile_info, compile_info},
+                         {'ExDc', docs}]}} ->
+        case attributes[:protocol] do
+          [fallback_to_any: any] ->
+            {:ok, {protocol, any, abstract_code}, {compile_info, docs}}
+          _ ->
+            {:error, :not_a_protocol}
+        end
+      _ ->
+        {:error, :no_beam_info}
+    end
+  end
+
+  defp beam_file(module) when is_atom(module) do
+    case :code.which(module) do
+      atom when is_atom(atom) -> module
+      file -> file
+    end
   end
 
 
