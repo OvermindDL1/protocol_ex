@@ -57,18 +57,18 @@ end
 defmodule TesteringResolved do # This thing could easily become a compiler plugin instead of an explicit call
   alias Testering.Blah
 
-  # ProtocolEx.resolveProtocolEx(Blah, [
-  #   Integer,
-  #   TaggedTuple.Vwoop,
-  #   MineOlStruct,
-  # ])
+  ProtocolEx.resolveProtocolEx(Blah, [
+    Integer,
+    TaggedTuple.Vwoop,
+    MineOlStruct,
+  ])
 
   # Now supporting auto-detection of anything already compiled!
   # (So when inline at compile-time like this then require first to make sure they are already compiled)
-  require Blah.Integer
-  require Blah.TaggedTuple.Vwoop
-  require Blah.MineOlStruct
-  ProtocolEx.resolveProtocolEx(Blah) # Without a list it auto-detects based on what is already compiled
+  # require Blah.Integer
+  # require Blah.TaggedTuple.Vwoop
+  # require Blah.MineOlStruct
+  # ProtocolEx.resolveProtocolEx(Blah) # Without a list it auto-detects based on what is already compiled
 
   0                  = Blah.empty(42)
   {Vwoop, 0}         = Blah.empty({Vwoop, 42})

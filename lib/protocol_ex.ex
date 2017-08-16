@@ -309,49 +309,6 @@ defmodule ProtocolEx do
     end
   end
 
-  defp get_protocolex_modules(paths)
-
-  defp get_modules_from_beam_with_attribute_filter(paths, attribute, value) do
-    List.wrap(paths)
-    |> Enum.flat_map(fn path ->
-      path
-      |> Path.join("*.beam")
-      |> Path.wildcard()
-    end)
-    |> throw
-  end
-
-
-  defp get_impls_from_compiled(base_name) do
-    throw {:test, base_name}
-  end
-
-  defp beam_protocol(protocol) do
-    chunk_ids = [:abstract_code, :attributes, :compile_info, 'ExDc']
-    opts = [:allow_missing_chunks]
-    case :beam_lib.chunks(beam_file(protocol), chunk_ids, opts) do
-      {:ok, {^protocol, [{:abstract_code, {_raw, abstract_code}},
-                         {:attributes, attributes},
-                         {:compile_info, compile_info},
-                         {'ExDc', docs}]}} ->
-        case attributes[:protocol] do
-          [fallback_to_any: any] ->
-            {:ok, {protocol, any, abstract_code}, {compile_info, docs}}
-          _ ->
-            {:error, :not_a_protocol}
-        end
-      _ ->
-        {:error, :no_beam_info}
-    end
-  end
-
-  defp beam_file(module) when is_atom(module) do
-    case :code.which(module) do
-      atom when is_atom(atom) -> module
-      file -> file
-    end
-  end
-
 
 
   defp get_atom_name(name) when is_atom(name), do: name
