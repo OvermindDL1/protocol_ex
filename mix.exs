@@ -12,7 +12,7 @@ defmodule ProtocolEx.Mixfile do
           #logo: "path/to/logo.png",
           extras: ["README.md"],
           main: "readme",
-          assets: "priv/doc/assets",
+          assets: "deps/makedown/priv/ex_doc/assets",
           # Extra CSS
           before_closing_head_tag: fn _ -> ~S(<link rel="stylesheet" href="assets/makedown.css"/>) end,
           # Extra Javascript
