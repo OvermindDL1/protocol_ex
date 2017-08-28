@@ -1,0 +1,171 @@
+code.makeup {
+  display: block;
+  overflow-x: auto;
+  padding-top: 0.3em !important;
+  padding-bottom: 0.3em !important;
+  padding-right: 0.5em !important;
+  padding-left: 0.5em !important;
+  color: white;
+  white-space: pre;
+}
+
+.makeup {}
+.makeup .hll {background-color: #ffffcc}
+.makeup .bp {color: #3465a4; } /* Tok.name_builtin_pseudo */
+.makeup .c {color: #8E908C; } /* Tok.comment */
+.makeup .c1 {color: #8E908C; } /* Tok.comment_single */
+.makeup .ch {color: #8E908C; } /* Tok.comment_hashbang */
+.makeup .cm {color: #8E908C; } /* Tok.comment_multiline */
+.makeup .cp {color: #8E908C; } /* Tok.comment_preproc */
+.makeup .cpf {color: #8E908C; } /* Tok.comment_preproc_file */
+.makeup .cs {color: #8E908C; font-style: italic; } /* Tok.comment_special */
+.makeup .dl {color: #4e9a06; } /* Tok.string_delimiter */
+.makeup .err {color: #a40000; border: #ef2929; } /* Tok.error */
+.makeup .fm {color: #000000; } /* Tok.name_function_magic */
+.makeup .g {color: #000000; } /* Tok.generic */
+.makeup .gd {color: #a40000; } /* Tok.generic_deleted */
+.makeup .ge {color: #000000; font-style: italic; } /* Tok.generic_emph */
+.makeup .gh {color: #000080; font-weight: bold; } /* Tok.generic_heading */
+.makeup .gi {color: #00A000; } /* Tok.generic_inserted */
+.makeup .go {color: #000000; font-style: italic; } /* Tok.generic_output */
+.makeup .gp {color: #8f5902; } /* Tok.generic_prompt */
+.makeup .gr {color: #ef2929; } /* Tok.generic_error */
+.makeup .gs {color: #000000; font-weight: bold; } /* Tok.generic_strong */
+.makeup .gt {color: #a40000; font-weight: bold; } /* Tok.generic_traceback */
+.makeup .gu {color: #800080; font-weight: bold; } /* Tok.generic_subheading */
+.makeup .il {color: #0000cf; font-weight: bold; } /* Tok.number_integer_long */
+.makeup .k {color: #204a87; font-weight: bold; } /* Tok.keyword */
+.makeup .kc {color: #204a87; font-weight: bold; } /* Tok.keyword_constant */
+.makeup .kd {color: #204a87; font-weight: bold; } /* Tok.keyword_declaration */
+.makeup .kn {color: #204a87; font-weight: bold; } /* Tok.keyword_namespace */
+.makeup .kp {color: #204a87; font-weight: bold; } /* Tok.keyword_pseudo */
+.makeup .kr {color: #204a87; font-weight: bold; } /* Tok.keyword_reserved */
+.makeup .kt {color: #204a87; font-weight: bold; } /* Tok.keyword_type */
+.makeup .l {color: #000000; } /* Tok.literal */
+.makeup .ld {color: #000000; } /* Tok.literal_date */
+.makeup .m {color: #0000cf; font-weight: bold; } /* Tok.number */
+.makeup .mb {color: #0000cf; font-weight: bold; } /* Tok.number_bin */
+.makeup .mf {color: #0000cf; font-weight: bold; } /* Tok.number_float */
+.makeup .mh {color: #0000cf; font-weight: bold; } /* Tok.number_hex */
+.makeup .mi {color: #0000cf; font-weight: bold; } /* Tok.number_integer */
+.makeup .mo {color: #0000cf; font-weight: bold; } /* Tok.number_oct */
+.makeup .n {color: #000000; } /* Tok.name */
+.makeup .na {color: #c4a000; } /* Tok.name_attribute */
+.makeup .nb {color: #204a87; } /* Tok.name_builtin */
+.makeup .nc {color: #5c35cc; } /* Tok.name_class */
+.makeup .nd {color: #5c35cc; font-weight: bold; } /* Tok.name_decorator */
+.makeup .ne {color: #cc0000; font-weight: bold; } /* Tok.name_exception */
+.makeup .nf {color: #000000; } /* Tok.name_function */
+.makeup .ni {color: #ce5c00; } /* Tok.name_entity */
+.makeup .nl {color: #f57900; } /* Tok.name_label */
+.makeup .nn {color: #000000; } /* Tok.name_namespace */
+.makeup .no {color: #000000; } /* Tok.name_constant */
+.makeup .nt {color: #204a87; font-weight: bold; } /* Tok.name_tag */
+.makeup .nv {color: #000000; } /* Tok.name_variable */
+.makeup .nx {color: #000000; } /* Tok.name_other */
+.makeup .o {color: #ce5c00; font-weight: bold; } /* Tok.operator */
+.makeup .ow {color: #204a87; font-weight: bold; } /* Tok.operator_word */
+.makeup .p {color: #000000; } /* Tok.punctuation */
+.makeup .py {color: #000000; } /* Tok.name_property */
+.makeup .s {color: #4e9a06; } /* Tok.string */
+.makeup .s1 {color: #c4a000 } /* Tok.string_single */
+.makeup .s2 {color: #4e9a06; } /* Tok.string_double */
+.makeup .sa {color: #4e9a06; } /* Tok.string_affix */
+.makeup .sb {color: #4e9a06; } /* Tok.string_backtick */
+.makeup .sc {color: #4e9a06; } /* Tok.string_char */
+.makeup .sd {color: #8f5902; font-style: italic; } /* Tok.string_doc */
+.makeup .se {color: #204a87; } /* Tok.string_escape */
+.makeup .sh {color: #4e9a06; } /* Tok.string_heredoc */
+.makeup .si {color: #5c35cc; } /* Tok.string_interpol */
+.makeup .sr {color: #cc0000; } /* Tok.string_regex */
+.makeup .ss {color: #4e9a06; } /* Tok.string_symbol */
+.makeup .sx {color: #4e9a06; } /* Tok.string_other */
+.makeup .sx {color: #f56900; } /* Tok.string_sigil */
+.makeup .vc {color: #000000; } /* Tok.name_variable_class */
+.makeup .vg {color: #000000; } /* Tok.name_variable_global */
+.makeup .vi {color: #000000; } /* Tok.name_variable_instance */
+.makeup .vm {color: #000000; } /* Tok.name_variable_magic */
+.makeup .x {color: #000000; } /* Tok.other */
+
+.night-mode code.makeup {
+  display: block;
+  overflow-x: auto;
+  padding-top: 0.3em !important;
+  padding-bottom: 0.3em !important;
+  padding-right: 0.5em !important;
+  padding-left: 0.5em !important;
+  white-space: pre;
+}
+
+.night-mode .makeup .hll {background-color: #4f424c}
+.night-mode .makeup {color: #e7e9db; background-color: #2f1e2e}
+.night-mode .makeup .bp {color: #e7e9db; } /* Tok.name_builtin_pseudo */
+.night-mode .makeup .c {color: #776e71; } /* Tok.comment */
+.night-mode .makeup .c1 {color: #776e71; } /* Tok.comment_single */
+.night-mode .makeup .ch {color: #776e71; } /* Tok.comment_hashbang */
+.night-mode .makeup .cm {color: #776e71; } /* Tok.comment_multiline */
+.night-mode .makeup .cp {color: #776e71; } /* Tok.comment_preproc */
+.night-mode .makeup .cpf {color: #776e71; } /* Tok.comment_preproc_file */
+.night-mode .makeup .cs {color: #776e71; } /* Tok.comment_special */
+.night-mode .makeup .dl {color: #48b685; } /* Tok.string_delimiter */
+.night-mode .makeup .err {color: #ef6155; } /* Tok.error */
+.night-mode .makeup .fm {color: #06b6ef; } /* Tok.name_function_magic */
+.night-mode .makeup .gd {color: #ef6155; } /* Tok.generic_deleted */
+.night-mode .makeup .ge {font-style: italic; } /* Tok.generic_emph */
+.night-mode .makeup .gh {color: #e7e9db; font-weight: bold; } /* Tok.generic_heading */
+.night-mode .makeup .gi {color: #48b685; } /* Tok.generic_inserted */
+.night-mode .makeup .gp {color: #776e71; font-weight: bold; } /* Tok.generic_prompt */
+.night-mode .makeup .gs {font-weight: bold; } /* Tok.generic_strong */
+.night-mode .makeup .gu {color: #5bc4bf; font-weight: bold; } /* Tok.generic_subheading */
+.night-mode .makeup .il {color: #f99b15; } /* Tok.number_integer_long */
+.night-mode .makeup .k {color: #815ba4; font-weight: normal } /* Tok.keyword */
+.night-mode .makeup .kc {color: #815ba4; font-weight: normal } /* Tok.keyword_constant */
+.night-mode .makeup .kd {color: #815ba4; font-weight: normal } /* Tok.keyword_declaration */
+.night-mode .makeup .kn {color: #5bc4bf; font-weight: normal } /* Tok.keyword_namespace */
+.night-mode .makeup .kp {color: #815ba4; font-weight: normal } /* Tok.keyword_pseudo */
+.night-mode .makeup .kr {color: #815ba4; font-weight: normal } /* Tok.keyword_reserved */
+.night-mode .makeup .kt {color: #fec418; font-weight: normal } /* Tok.keyword_type */
+.night-mode .makeup .l {color: #f99b15; } /* Tok.literal */
+.night-mode .makeup .ld {color: #f99b15; } /* Tok.literal_date */
+.night-mode .makeup .m {color: #f99b15; } /* Tok.number */
+.night-mode .makeup .mb {color: #f99b15; font-weight: normal } /* Tok.number_bin */
+.night-mode .makeup .mf {color: #f99b15; font-weight: normal } /* Tok.number_float */
+.night-mode .makeup .mh {color: #f99b15; font-weight: normal } /* Tok.number_hex */
+.night-mode .makeup .mi {color: #f99b15; font-weight: normal } /* Tok.number_integer */
+.night-mode .makeup .mo {color: #f99b15; font-weight: normal } /* Tok.number_oct */
+.night-mode .makeup .n {color: #e7e9db; } /* Tok.name */
+.night-mode .makeup .na {color: #06b6ef; } /* Tok.name_attribute */
+.night-mode .makeup .nb {color: #e7e9db; } /* Tok.name_builtin */
+.night-mode .makeup .nc {color: #fec418; } /* Tok.name_class */
+.night-mode .makeup .nd {color: #5bc4bf; } /* Tok.name_decorator */
+.night-mode .makeup .ne {color: #ef6155; } /* Tok.name_exception */
+.night-mode .makeup .nf {color: #06b6ef; } /* Tok.name_function */
+.night-mode .makeup .ni {color: #ef6155; } /* Tok.name_entity */
+.night-mode .makeup .nl {color: #e7e9db; } /* Tok.name_label */
+.night-mode .makeup .nn {color: #fec418; } /* Tok.name_namespace */
+.night-mode .makeup .no {color: #ef6155; } /* Tok.name_constant */
+.night-mode .makeup .nt {color: #5bc4bf; } /* Tok.name_tag */
+.night-mode .makeup .nv {color: #ef6155; } /* Tok.name_variable */
+.night-mode .makeup .nx {color: #06b6ef; } /* Tok.name_other */
+.night-mode .makeup .o {color: #5bc4bf; font-weight: normal } /* Tok.operator */
+.night-mode .makeup .ow {color: #5bc4bf; font-weight: normal } /* Tok.operator_word */
+.night-mode .makeup .p {color: #e7e9db; } /* Tok.punctuation */
+.night-mode .makeup .py {color: #e7e9db; } /* Tok.name_property */
+.night-mode .makeup .s {color: #48b685; } /* Tok.string */
+.night-mode .makeup .s1 {color: #48b685; } /* Tok.string_single */
+.night-mode .makeup .s2 {color: #48b685; } /* Tok.string_double */
+.night-mode .makeup .sa {color: #48b685; } /* Tok.string_affix */
+.night-mode .makeup .sb {color: #48b685; } /* Tok.string_backtick */
+.night-mode .makeup .sc {color: #e7e9db; } /* Tok.string_char */
+.night-mode .makeup .sd {color: #776e71; } /* Tok.string_doc */
+.night-mode .makeup .se {color: #f99b15; } /* Tok.string_escape */
+.night-mode .makeup .sh {color: #48b685; } /* Tok.string_heredoc */
+.night-mode .makeup .si {color: #f99b15; } /* Tok.string_interpol */
+.night-mode .makeup .sr {color: #48b685; } /* Tok.string_regex */
+.night-mode .makeup .ss {color: #48b685; } /* Tok.string_symbol */
+.night-mode .makeup .sx {color: #48b685; } /* Tok.string_other */
+.night-mode .makeup .sx {color: #48b685; } /* Tok.string_sigil */
+.night-mode .makeup .vc {color: #ef6155; } /* Tok.name_variable_class */
+.night-mode .makeup .vg {color: #ef6155; } /* Tok.name_variable_global */
+.night-mode .makeup .vi {color: #ef6155; } /* Tok.name_variable_instance */
+.night-mode .makeup .vm {color: #ef6155; } /* Tok.name_variable_magic */
