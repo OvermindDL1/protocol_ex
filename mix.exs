@@ -12,6 +12,11 @@ defmodule ProtocolEx.Mixfile do
           #logo: "path/to/logo.png",
           extras: ["README.md"],
           main: "readme",
+          assets: "deps/makedown/priv/ex_doc/assets",
+          # Extra CSS
+          before_closing_head_tag: fn _ -> ~S(<link rel="stylesheet" href="assets/makedown.css"/>) end,
+          # Extra Javascript
+          before_closing_body_tag: fn _ -> ~S(<script src="assets/makedown.js"></script>) end
           ],
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
@@ -45,7 +50,10 @@ defmodule ProtocolEx.Mixfile do
 
   defp deps do
     [
-      {:ex_doc, "~> 0.16.2", only: [:dev]},
+      {:makeup, "~> 0.2.0"},
+      {:makeup_elixir, "~> 0.2.0"},
+      {:makedown, "~> 0.2.0", only: [:dev]},
+      {:ex_doc, "~> 0.16.3", only: [:dev]},
       # Testing only
       {:cortex, "~> 0.2.0", only: [:test]},
       {:benchee, "~> 0.9.0", only: [:test]},
