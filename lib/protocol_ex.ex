@@ -250,7 +250,6 @@ defmodule ProtocolEx do
       [ quote do def __protocolEx__, do: unquote(Macro.escape(spec)) end
       | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(proto_name, &1, impls))
       ]}
-    # impl_quoted |> Macro.to_string() |> IO.puts
     if Code.ensure_loaded?(proto_name) do
       :code.purge(proto_name)
     end

@@ -4,7 +4,7 @@ defmodule ProtocolEx.Mixfile do
   def project do
     [
       app: :protocol_ex,
-      version: "0.3.1",
+      version: "0.3.2",
       elixir: "~> 1.4",
       description: description(),
       package: package(),
@@ -50,6 +50,7 @@ defmodule ProtocolEx.Mixfile do
 
   defp deps do
     [
+      # Development and documentation only
       {:makeup, "~> 0.2.0"},
       {:makeup_elixir, "~> 0.2.0"},
       {:makedown, "~> 0.2.0", only: [:dev]},
