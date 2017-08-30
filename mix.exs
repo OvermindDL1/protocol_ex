@@ -50,7 +50,9 @@ defmodule ProtocolEx.Mixfile do
 
   defp deps do
     [
-      {:makedown, "~> 0.1.1", only: [:dev]},
+      {:makeup, "~> 0.2.0"},
+      {:makeup_elixir, "~> 0.2.0"},
+      {:makedown, "~> 0.2.0", only: [:dev]},
       {:ex_doc, "~> 0.16.3", only: [:dev]},
       # Testing only
       {:cortex, "~> 0.2.0", only: [:test]},
