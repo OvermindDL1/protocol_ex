@@ -16,10 +16,46 @@ defmodule Testering do
     def a_fallback(a), do: inspect(a)
   end
 
+  # Extending and properties
+  defprotocolEx Functor do
+    def map(v, f)
+
+    deftest identity do
+      StreamData.check_all(prop_generator(), [initial_seed: :os.timestamp()], fn v ->
+        if v === map(v, &(&1)) do
+          {:ok, v}
+        else
+          {:error, v}
+        end
+      end)
+    end
+
+    deftest composition do
+      f = fn x -> x end
+      g = fn x -> x end
+      StreamData.check_all(prop_generator(), [initial_seed: :os.timestamp()], fn v ->
+        if map(v, fn x -> f.(g.(x)) end) === map(map(v, g), f) do
+          {:ok, v}
+        else
+          {:error, v}
+        end
+      end)
+    end
+  end
+
+  defprotocolEx Apply do
+    def app(v)
+  end
+
+end
+
+defmodule MyStruct do
+  defstruct a: 42
 end
 
 defmodule Testering1 do
   alias Testering.Blah
+  alias Testering.Functor
 
   defimplEx Integer, i when is_integer(i), for: Blah do
     @priority 1
@@ -30,14 +66,6 @@ defmodule Testering1 do
 
     def a_fallback(i), do: "Integer: #{i}"
   end
-end
-
-defmodule MyStruct do
-  defstruct a: 42
-end
-
-defmodule Testering2 do
-  alias Testering.Blah
 
   defimplEx TaggedTuple.Vwoop, {Vwoop, i} when is_integer(i), for: Blah do
     def empty(_), do: {Vwoop, 0}
@@ -52,15 +80,34 @@ defmodule Testering2 do
     def add(s, b), do: %{s | a: s.a+b}
     def map(s, f), do: %{s | a: f.(s.a)}
   end
+
+  # Functor test
+
+  defimplEx Integer, i when is_integer(i), for: Functor, inline: [map: 2] do
+    def prop_generator(), do: StreamData.integer()
+    def map(i, f) when is_integer(i), do: f.(i)
+  end
+
+  defimplEx List, l when is_list(l), for: Functor, inline: [maps: 2] do
+    def prop_generator(), do: StreamData.list_of(StreamData.integer())
+    def map([], _f), do: []
+    def map([h | t], f), do: [f.(h) | map(t, f)]
+  end
 end
 
 defmodule TesteringResolved do # This thing could easily become a compiler plugin instead of an explicit call
   alias Testering.Blah
+  alias Testering.Functor
 
   ProtocolEx.resolveProtocolEx(Blah, [
     Integer,
     TaggedTuple.Vwoop,
     MineOlStruct,
+  ])
+
+  ProtocolEx.resolveProtocolEx(Functor, [
+    Integer,
+    List,
   ])
 
   # Now supporting auto-detection of anything already compiled!

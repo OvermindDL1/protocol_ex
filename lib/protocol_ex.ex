@@ -41,6 +41,17 @@ defmodule ProtocolEx do
     end
   end
 
+  defmodule ProtocolExTestFailure do
+    @moduledoc """
+    A failed test and information about the error condition
+    """
+    defexception [proto: nil, type: nil, name: nil, meta: nil, value: nil]
+    def message(exc) do
+      location = inspect(exc.meta)
+      "\nOn Protocol `#{exc.proto}`\n\twith type of `#{exc.type}`,\n\tfailed test `#{exc.name}`/#{location}\n\twith error value of: #{inspect exc.value}\n\n"
+    end
+  end
+
 
   defmodule Spec do
     @moduledoc false
@@ -61,9 +72,12 @@ defmodule ProtocolEx do
     desc_name = get_atom_name_with(name, @desc_name)
     body =
       case body do
-        {:__block__, meta, lines} ->
+        {:__block__, _meta, _lines} = ast -> ast
+        line -> {:__block__, [], [line]}
+      end
+      |> case do {:__block__, meta, lines} ->
           lines = Enum.map(lines, fn
-            {type, _, _} = ast when type in [:def] -> ast
+            {type, _, _} = ast when type in [:def, :defp] -> ast
             ast -> Macro.expand(ast, __CALLER__)
           end)
           {:__block__, meta, lines}
@@ -103,6 +117,8 @@ defmodule ProtocolEx do
     impl_name = get_atom_name(impl_name)
     spec = desc_name.spec()
 
+    test_asts = gen_impl_test_asts(spec)
+
     impl_quoted = {:__block__, [],
       [ quote do
           def __matcher__, do: unquote(Macro.escape(matcher))
@@ -118,29 +134,32 @@ defmodule ProtocolEx do
         end,
         quote do
           Module.register_attribute(__MODULE__, :priority, persist: true)
-        end,
-        case opts[:inline] do
-          nil -> quote do def __inlined__(_), do: nil end
-          # :all -> quote do def __inlined__(_), do: true end
-          funs when is_list(funs) ->
-            funs
-            |> Enum.map(fn {fun, arity} ->
-              Macro.prewalk(body, [], fn
-                ({:def, _, [{^fun, _, bindings}, _]} = ast, acc) when length(bindings) === arity ->
-                  {ast, [ast | acc]}
-                ({:def, _, [{:when, _, [{^fun, _, bindings}, _]}, _]} = ast, acc) when length(bindings) === arity ->
-                  {ast, [ast | acc]}
-                (ast, acc) ->
-                  {ast, acc}
-              end)
-              |> case do
-                {_body, ast} -> quote do def __inlined__({unquote(fun), unquote(arity)}), do: unquote(Macro.escape(ast)) end
-              end
-            end)
-            |> Enum.reverse([quote do def __inlined__(_), do: nil end])
         end
-      | List.wrap(body)
-      ]}
+      ] ++
+      case opts[:inline] do
+        nil -> [quote do def __inlined__(_), do: nil end]
+        # :all -> quote do def __inlined__(_), do: true end
+        funs when is_list(funs) ->
+          funs
+          |> Enum.map(fn {fun, arity} ->
+            Macro.prewalk(body, [], fn
+              ({:def, _, [{^fun, _, bindings}, _]} = ast, acc) when length(bindings) === arity ->
+                {ast, [ast | acc]}
+              ({:def, _, [{:when, _, [{^fun, _, bindings}, _]}, _]} = ast, acc) when length(bindings) === arity ->
+                {ast, [ast | acc]}
+              (ast, acc) ->
+                {ast, acc}
+            end)
+            |> case do
+              {_body, ast} -> quote do def __inlined__({unquote(fun), unquote(arity)}), do: unquote(Macro.escape(ast)) end
+            end
+          end)
+          |> List.wrap()
+          |> Enum.reverse([quote do def __inlined__(_), do: nil end])
+      end ++
+      List.wrap(body) ++
+      test_asts
+    }
     # impl_quoted |> Macro.to_string() |> IO.puts
     if Code.ensure_loaded?(impl_name) do
       :code.purge(impl_name)
@@ -249,11 +268,15 @@ defmodule ProtocolEx do
     impl_quoted = {:__block__, [],
       [ quote do def __protocolEx__, do: unquote(Macro.escape(spec)) end
       | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(proto_name, &1, impls))
-      ]}
+      ] ++
+      Enum.flat_map(spec.callbacks, &load_test_from_impls(proto_name, &1, impls)) ++
+      load_tests_from_impls(spec.callbacks)
+    }
     if Code.ensure_loaded?(proto_name) do
       :code.purge(proto_name)
     end
     Module.create(proto_name, impl_quoted, Macro.Env.location(__ENV__))
+    if(true, do: proto_name.__tests_pex__([]))
     proto_name
   end
 
@@ -291,12 +314,16 @@ defmodule ProtocolEx do
     impl_quoted = {:__block__, [],
       [ quote do def __protocolEx__, do: unquote(Macro.escape(spec)) end
       | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(name, &1, impls))
-      ]}
+      ] ++
+      Enum.flat_map(spec.callbacks, &load_test_from_impls(name, &1, impls)) ++
+      load_tests_from_impls(spec.callbacks)
+    }
     # impl_quoted |> Macro.to_string() |> IO.puts
     if Code.ensure_loaded?(name) do
       :code.purge(name)
     end
     Module.create(name, impl_quoted, Macro.Env.location(__CALLER__))
+    if(true, do: name.__tests_pex__([]))
     :ok
   end
 
@@ -341,6 +368,10 @@ defmodule ProtocolEx do
     callbacks = [{name, args_length, head, elem} | returned.callbacks]
     %{returned | callbacks: callbacks}
   end
+  defp decompose_spec_element(returned, {:deftest, meta, [{name, _, scope}, checks]}) when is_atom(scope) do
+    callbacks = [{:extra, :test, name, meta, checks} | returned.callbacks]
+    %{returned | callbacks: callbacks}
+  end
   defp decompose_spec_element(_returned, unhandled_elem), do: raise %InvalidProtocolSpecification{ast: unhandled_elem}
 
 
@@ -348,7 +379,8 @@ defmodule ProtocolEx do
   defp decompose_spec_head({:when, _when_meta, [head, _guard]}) do
     decompose_spec_head(head)
   end
-  defp decompose_spec_head({name, _name_meta, args}) when is_atom(name) and is_list(args) do
+  defp decompose_spec_head({name, _name_meta, args} = head) when is_atom(name) and is_list(args) do
+    if([] === args, do: raise %InvalidProtocolSpecification{ast: head})
     {name, length(args)}
   end
   defp decompose_spec_head(head), do: raise %InvalidProtocolSpecification{ast: head}
@@ -358,12 +390,14 @@ defmodule ProtocolEx do
     callbacks = Enum.uniq_by(spec.callbacks, fn
       {name, arity, _elem} -> {name, arity}
       {name, arity, _elem_head, _elem} -> {name, arity}
+      {:extra, :test, name, _meta, _checks} -> {:extra, :test, name}
     end)
     if length(spec.callbacks) !== length(callbacks) do
       [{name, arity, _elem}|_] = spec.callbacks -- callbacks
       raise %DuplicateSpecification{name: name, arity: arity}
     end
-    spec
+    callbacks = Enum.sort(spec.callbacks)
+    %{spec | callbacks: callbacks}
   end
 
 
@@ -377,9 +411,87 @@ defmodule ProtocolEx do
           raise  %MissingRequiredProtocolDefinition{proto: proto, impl: module, name: name, arity: arity}
         end
       {_name, _arity, _, _} -> :ok
+      {:extra, :test, _name, _meta, _checks} -> :ok
     end)
     :ok
   end
+
+
+  defp gen_impl_test_asts(spec) do
+    opts = Macro.var(:opts, nil)
+    Enum.filter(spec.callbacks, fn
+      {:extra, :test, _name, _meta, _checks} -> true
+      _ -> false
+    end)
+    |> case do
+      [] -> []
+      tests ->
+        Enum.map(tests, fn {:extra, :test, name, _meta, body} ->
+          quote do
+            def __tests_pex__(unquote(name), unquote(opts)) do
+              _ = unquote(opts)
+              unquote_splicing(List.wrap(body[:do]))
+            end
+          end
+        end)
+    end
+  end
+
+
+  def load_tests_from_impls(callbacks) do
+    opts = Macro.var(:opts, __MODULE__)
+    tests = Enum.flat_map(callbacks, fn
+      {:extra, :test, name, _meta, _checks} ->
+        [quote do
+          __tests_pex__(unquote(name), unquote(opts))
+        end]
+      _ -> []
+    end)
+    [quote do
+      def __tests_pex__(unquote(opts)) do
+        unquote_splicing(tests)
+      end
+    end]
+  end
+
+
+  defp load_test_from_impls(proto, {:extra, :test, name, meta, _checks}, impls) do
+    opts = Macro.var(:opts, __MODULE__)
+    [quote do
+      def __tests_pex__(unquote(name), unquote(opts)) do
+        unquote_splicing(Enum.map(impls, fn impl ->
+          quote do
+            try do
+              unquote(impl).__tests_pex__(unquote(name), unquote(opts))
+            rescue exc -> exc
+            catch err -> err
+            end
+            |> case do
+              {:ok, _value} -> :ok
+              {:error, err_data} -> raise %ProtocolExTestFailure{
+                proto: unquote(proto),
+                type: unquote(impl),
+                name: unquote(name),
+                meta: unquote(meta),
+                value: err_data,
+              }
+              :ok -> :ok
+              true -> :ok
+              nil -> :ok
+              err_data -> raise %ProtocolExTestFailure{
+                proto: unquote(proto),
+                type: unquote(impl),
+                name: unquote(name),
+                meta: unquote(meta),
+                value: err_data,
+              }
+            end
+          end
+        end))
+      end
+    end]
+  end
+  defp load_test_from_impls(_proto, _abstract, _impls), do: []
 
 
   defp load_abstract_from_impls(pname, abstract, impls, returning \\ [])
@@ -387,30 +499,41 @@ defmodule ProtocolEx do
     case abstract do
       {name, arity, ast_head} ->
         args = get_args_from_head(ast_head)
-        first_arg = hd(args)
-        rest_args = tl(args)
-        rest_args =
-          Enum.map(rest_args, fn arg ->
-            quote do
-              _ = unquote(arg)
-            end
-          end)
+        # if([] == args, do: raise %InvalidProtocolSpecification{message: "#{name} has no arguments, need at least 1 to type dispatch"})
+        # first_arg = if([] == args, do: :type_only, else: hd(args))
+        # rest_args = if([] == args, do: [], else: tl(args))
+        # rest_args =
+        #   Enum.map(rest_args, fn arg ->
+        #     quote do
+        #       _ = unquote(arg)
+        #     end
+        #   end)
         body =
           {:raise, [context: Elixir, import: Kernel],
            [{:%, [],
              [{:__aliases__, [alias: false], [:ProtocolEx, :UnimplementedProtocolEx]},
               {:%{}, [],
-               [proto: pname, name: name, arity: arity, value: first_arg]
+              #  [proto: pname, name: name, arity: arity, value: first_arg]
+                [proto: pname, name: name, arity: arity, value: args]
                }]}]}
         body =
           quote do
-            unquote_splicing(rest_args)
+            # unquote_splicing(rest_args)
             unquote(body)
           end
         catch_all = append_body_to_head(ast_head, body)
         :lists.reverse(returning, [catch_all])
       {_name, _arity, _ast_head, ast_fallback}  ->
         :lists.reverse(returning, [ast_fallback])
+      {:extra, :test, _name, _meta, _checks} -> []
+        # impls = returning
+        # [quote do
+        #   def __tests_pex__(unquote(name)) do
+        #     unquote_splicing(Enum.map(impls, fn {impl} ->
+        #       quote(do: unquote(impl).__tests_pex__(unquote(name)))
+        #     end))
+        #   end
+        # end]
     end
   end
   defp load_abstract_from_impls(pname, abstract, [impl | impls], returning) do
@@ -427,37 +550,41 @@ defmodule ProtocolEx do
         else
           :skip
         end
+      {:extra, :test, _name, _meta, _checks} = test -> test
     end
     |> case do
       :skip -> load_abstract_from_impls(pname, abstract, impls, returning)
       {name, ast_head} ->
-          matchers = List.wrap(impl.__matcher__())
-          args = get_args_from_head(ast_head)
-          arity = length(args)
-          if :erlang.function_exported(impl, :__inlined__, 1) do
-            impl.__inlined__({name, arity})
-          else
-            nil
-          end
-          |> case do
-            nil ->
-              body = build_body_call_with_args(impl, name, args)
-              head_args = bind_matcher_to_args(matchers, args)
-              ast_head = replace_head_args_with(ast_head, head_args)
-              guard = get_guards_from_matchers(matchers)
-              ast_head = if(guard == true, do: ast_head, else: add_guard_to_head(ast_head, guard))
-              ast = append_body_to_head(ast_head, body)
-              load_abstract_from_impls(pname, abstract, impls, [ast | returning])
-            inlined_impls when is_list(inlined_impls) ->
-              guard = get_guards_from_matchers(matchers)
-              inlined_impls =
-                if(guard == true) do
-                  inlined_impls = Enum.map(inlined_impls, &add_guard_to_head(&1, guard))
-                  load_abstract_from_impls(pname, abstract, impls, inlined_impls ++ returning)
-                else
-                  load_abstract_from_impls(pname, abstract, impls, inlined_impls ++ returning)
-                end
-          end
+        matchers = List.wrap(impl.__matcher__())
+        args = get_args_from_head(ast_head)
+        arity = length(args)
+        if :erlang.function_exported(impl, :__inlined__, 1) do
+          impl.__inlined__({name, arity})
+        else
+          nil
+        end
+        |> case do
+          nil ->
+            body = build_body_call_with_args(impl, name, args)
+            head_args = bind_matcher_to_args(matchers, args)
+            ast_head = replace_head_args_with(ast_head, head_args)
+            guard = get_guards_from_matchers(matchers)
+            ast_head = if(guard == true, do: ast_head, else: add_guard_to_head(ast_head, guard))
+            ast = append_body_to_head(ast_head, body)
+            load_abstract_from_impls(pname, abstract, impls, [ast | returning])
+          inlined_impls when is_list(inlined_impls) ->
+            guard = get_guards_from_matchers(matchers)
+            inlined_impls =
+              if(guard == true) do # TODO:  Maybe change this to force guard on inlined heads?  Probably not, maybe only on plain variables?
+                inlined_impls = Enum.map(inlined_impls, &add_guard_to_head(&1, guard))
+                load_abstract_from_impls(pname, abstract, impls, inlined_impls ++ returning)
+              else
+                load_abstract_from_impls(pname, abstract, impls, inlined_impls ++ returning)
+              end
+        end
+      {:extra, :test, _name, _meta, _checks} ->
+        returning = [{impl} | returning]
+        load_abstract_from_impls(pname, abstract, impls, returning)
     end
   end
 
@@ -526,7 +653,9 @@ defmodule ProtocolEx do
   end
 
   defp append_body_to_head(ast_head, body)
-  defp append_body_to_head({:def, meta, args}, body), do: {:def, meta, args++[[do: body]]}
+  defp append_body_to_head({:def, meta, args}, body) do
+    {:def, meta, args++[[do: body]]}
+  end
 end
 
 if Mix.env() === :test do

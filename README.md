@@ -44,6 +44,8 @@ Plain heads **must** be implemented in an implementation, not to do so will rais
 
 Full body functions supply the fallback, if an implementation does not supply an implementation of it then it will fall back to the fallback implementation.
 
+Inside a `defprotocolEx/2` you are able to use `deftest` to run some tests at compile time to make certain that the implementations follow necessary rules.
+
 #### Example
 
 ```elixir
@@ -54,6 +56,38 @@ defprotocolEx Blah do
   def map(a, f) when is_function(f, 1)
 
   def a_fallback(a), do: inspect(a)
+end
+```
+
+##### deftest example
+
+In this example each implementation must also define a `prop_generator` that returns a StreamData generator to generate the types of that implementation, such as for lists:  `def prop_generator(), do: StreamData.list_of(StreamData.integer())`
+
+```elixir
+defprotocolEx Functor do
+  def map(v, f)
+
+  deftest identity do
+    StreamData.check_all(prop_generator(), [initial_seed: :os.timestamp()], fn v ->
+      if v === map(v, &(&1)) do
+        {:ok, v}
+      else
+        {:error, v}
+      end
+    end)
+  end
+
+  deftest composition do
+    f = fn x -> x end
+    g = fn x -> x end
+    StreamData.check_all(prop_generator(), [initial_seed: :os.timestamp()], fn v ->
+      if map(v, fn x -> f.(g.(x)) end) === map(map(v, g), f) do
+        {:ok, v}
+      else
+        {:error, v}
+      end
+    end)
+  end
 end
 ```
 
