@@ -19,7 +19,13 @@ defmodule ProtocolEx do
     Only one implementation for a given callback per implementaiton is allowed at this time.
     """
     defexception [name: nil, arity: 0]
-    def message(exc), do: "Duplicate specification node:  #{inspect exc.name}/#{inspect exc.arity}"
+    def message(exc) do
+      if exc.arity === -1 do
+        "Cannot specify both a 0-arity and 1-arity version of the same function:  #{inspect exc.name}"
+      else
+        "Duplicate specification node:  #{inspect exc.name}/#{inspect exc.arity}"
+      end
+    end
   end
 
   defmodule UnimplementedProtocolEx do
@@ -84,13 +90,16 @@ defmodule ProtocolEx do
       end
     spec = decompose_spec(body)
     spec = verify_valid_spec(spec)
-    quote do
-      defmodule unquote(desc_name) do
-        Module.register_attribute(__MODULE__, unquote(@desc_attr), persist: true)
-        @protocol_ex_desc unquote(parsed_name)
-        def spec, do: unquote(Macro.escape(spec))
+    ast =
+      quote do
+        defmodule unquote(desc_name) do
+          Module.register_attribute(__MODULE__, unquote(@desc_attr), persist: true)
+          @protocol_ex_desc unquote(parsed_name)
+          def spec, do: unquote(Macro.escape(spec))
+        end
       end
-    end
+    # ast |> Macro.to_string() |> IO.puts()
+    ast
   end
 
 
@@ -323,7 +332,7 @@ defmodule ProtocolEx do
       :code.purge(name)
     end
     Module.create(name, impl_quoted, Macro.Env.location(__CALLER__))
-    if(true, do: name.__tests_pex__([]))
+    if(true, do: name.__tests_pex__([])) # TODO: Make this configurable
     :ok
   end
 
@@ -380,23 +389,28 @@ defmodule ProtocolEx do
     decompose_spec_head(head)
   end
   defp decompose_spec_head({name, _name_meta, args} = head) when is_atom(name) and is_list(args) do
-    if([] === args, do: raise %InvalidProtocolSpecification{ast: head})
     {name, length(args)}
   end
   defp decompose_spec_head(head), do: raise %InvalidProtocolSpecification{ast: head}
 
 
   defp verify_valid_spec(spec) do
-    callbacks = Enum.uniq_by(spec.callbacks, fn
-      {name, arity, _elem} -> {name, arity}
-      {name, arity, _elem_head, _elem} -> {name, arity}
+    # Sort callbacks
+    spec_callbacks = Enum.sort(spec.callbacks, &>/2)
+    # Verify only valid definitions
+    callbacks = Enum.uniq_by(spec_callbacks, fn # The if's are to verify no 0-arity and 1-arity at same time
+      {name, arity, _elem} -> {name, if(arity===0, do: 1, else: arity)}
+      {name, arity, _elem_head, _elem} -> {name, if(arity===0, do: 1, else: arity)}
       {:extra, :test, name, _meta, _checks} -> {:extra, :test, name}
     end)
-    if length(spec.callbacks) !== length(callbacks) do
-      [{name, arity, _elem}|_] = spec.callbacks -- callbacks
-      raise %DuplicateSpecification{name: name, arity: arity}
+    # Verify no duplicate callback spec
+    if length(spec_callbacks) !== length(callbacks) do
+      [{name, arity, _elem}|_] = spec_callbacks -- callbacks
+      case arity do
+        0 -> raise %DuplicateSpecification{name: name, arity: -1}
+        _ -> raise %DuplicateSpecification{name: name, arity: arity}
+      end
     end
-    callbacks = Enum.sort(spec.callbacks)
     %{spec | callbacks: callbacks}
   end
 
@@ -566,10 +580,14 @@ defmodule ProtocolEx do
         |> case do
           nil ->
             body = build_body_call_with_args(impl, name, args)
-            head_args = bind_matcher_to_args(matchers, args)
+            head_args =
+              case bind_matcher_to_args(matchers, args) do
+                [] -> bind_matcher_to_args(matchers, [Macro.var(:_, __MODULE__)]) # 0-arity to 1-arity of the matcher
+                head_args -> head_args
+              end
             ast_head = replace_head_args_with(ast_head, head_args)
             guard = get_guards_from_matchers(matchers)
-            ast_head = if(guard == true, do: ast_head, else: add_guard_to_head(ast_head, guard))
+            ast_head = add_guard_to_head(ast_head, guard)
             ast = append_body_to_head(ast_head, body)
             load_abstract_from_impls(pname, abstract, impls, [ast | returning])
           inlined_impls when is_list(inlined_impls) ->
@@ -633,6 +651,7 @@ defmodule ProtocolEx do
   end
 
   defp add_guard_to_head(ast_head, guard)
+  defp add_guard_to_head(ast_head, true), do: ast_head
   defp add_guard_to_head({:def, meta, [{:when, when_meta, [head, old_guard]} | rest]}, guard) do
     {:def, meta, [
       {:when, when_meta, [head, {:and, [], [old_guard, guard]}]}

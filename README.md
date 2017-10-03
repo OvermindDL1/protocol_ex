@@ -50,7 +50,7 @@ Inside a `defprotocolEx/2` you are able to use `deftest` to run some tests at co
 
 ```elixir
 defprotocolEx Blah do
-  def empty(a)
+  def empty() # Transformed to 1-arg that matches on based on the implementation, but ignored otherwise
   def succ(a)
   def add(a, b)
   def map(a, f) when is_function(f, 1)
@@ -99,7 +99,7 @@ end
 
 ```elixir
 defimplEx Integer, i when is_integer(i), for: Blah do
-  def empty(_), do: 0
+  def empty(), do: 0
   def succ(i), do: i+1
   def add(i, b), do: i+b
   def map(i, f), do: f.(i)
@@ -108,7 +108,7 @@ defimplEx Integer, i when is_integer(i), for: Blah do
 end
 
 defimplEx TaggedTuple.Vwoop, {Vwoop, i} when is_integer(i), for: Blah do
-  def empty(_), do: {Vwoop, 0}
+  def empty(), do: {Vwoop, 0}
   def succ({Vwoop, i}), do: {Vwoop, i+1}
   def add({Vwoop, i}, b), do: {Vwoop, i+b}
   def map({Vwoop, i}, f), do: {Vwoop, f.(i)}
@@ -119,7 +119,7 @@ defmodule MyStruct do
 end
 
 defimplEx MineOlStruct, %MyStruct{}, for: Blah do
-  def empty(_), do: %MyStruct{a: 0}
+  def empty(), do: %MyStruct{a: 0}
   def succ(s), do: %{s | a: s.a+1}
   def add(s, b), do: %{s | a: s.a+b}
   def map(s, f), do: %{s | a: f.(s.a)}
@@ -166,4 +166,12 @@ To use your protocol you just call the specific functions on the module, for the
 43                 = Blah.map(42, &(&1+1))
 {Vwoop, 43}        = Blah.map({Vwoop, 42}, &(&1+1))
 %MyStruct{a: 43}   = Blah.map(%MyStruct{a: 42}, &(&1+1))
+```
+
+It can of course be useful to call an implementation directly as well:
+
+```elixir
+0                  = Blah.Integer.empty()
+{Vwoop, 0}         = Blah.TaggedTuple.Vwoop.empty()
+%MyStruct{a: 0}    = Blah.MineOlStruct.empty()
 ```

@@ -3,7 +3,7 @@ defmodule ProtocolExTest do
   doctest ProtocolEx
 
   test "the truth" do
-    assert 0 === Testering.Blah.Integer.empty(42)
+    assert 0 === Testering.Blah.Integer.empty()
 
     assert 0 === Testering.Blah.empty(42)
     assert {Vwoop, 0} === Testering.Blah.empty({Vwoop, 42})
