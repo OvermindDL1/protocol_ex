@@ -71,7 +71,7 @@ defprotocolEx Blah do
 end
 ```
 
-##### deftest example
+##### `deftest` example
 
 In this example each implementation must also define a `prop_generator` that returns a StreamData generator to generate the types of that implementation, such as for lists:  `def prop_generator(), do: StreamData.list_of(StreamData.integer())`
 
@@ -102,6 +102,19 @@ defprotocolEx Functor do
   end
 end
 ```
+
+##### Named position example
+
+You can also specify a name to the matcher so you can use the same name in a specific position in a `def`, like in:
+
+```elixir
+defprotocolEx Monad, as: monad do
+  def wrap(value, monad)
+  def flat_map(monad, fun)
+end
+```
+
+In this example `wrap/2` uses the monad matcher in its last position, where `flat_map/2` uses it in the first.
 
 ### `defimplEx/4`
 

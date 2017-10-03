@@ -17,7 +17,7 @@ defmodule Testering do
   end
 
   # Extending and properties
-  defprotocolEx Functor do
+  defprotocolEx Functor, as: v do
     def map(v, f)
 
     deftest identity do
