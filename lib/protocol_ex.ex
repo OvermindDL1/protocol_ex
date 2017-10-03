@@ -327,7 +327,7 @@ defmodule ProtocolEx do
       Enum.flat_map(spec.callbacks, &load_test_from_impls(name, &1, impls)) ++
       load_tests_from_impls(spec.callbacks)
     }
-    impl_quoted |> Macro.to_string() |> IO.puts
+    # impl_quoted |> Macro.to_string() |> IO.puts
     if Code.ensure_loaded?(name) do
       :code.purge(name)
     end
