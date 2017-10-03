@@ -56,7 +56,7 @@ defmodule Testering1 do
   defimplEx Integer, i when is_integer(i), for: Blah do
     @priority 1
     def empty(), do: 0
-    def succ(i), do: i+1
+    defmacro succ(ivar), do: quote(do: unquote(ivar)+1)
     def add(i, b), do: i+b
     def map(i, f), do: f.(i)
 
@@ -84,7 +84,7 @@ defmodule Testering1 do
     def map(i, f) when is_integer(i), do: f.(i)
   end
 
-  defimplEx List, l when is_list(l), for: Functor, inline: [maps: 2] do
+  defimplEx List, l when is_list(l), for: Functor do
     def prop_generator(), do: StreamData.list_of(StreamData.integer())
     def map([], _f), do: []
     def map([h | t], f), do: [f.(h) | map(t, f)]

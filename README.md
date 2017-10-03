@@ -100,7 +100,7 @@ end
 ```elixir
 defimplEx Integer, i when is_integer(i), for: Blah do
   def empty(), do: 0
-  def succ(i), do: i+1
+  defmacro succ(i), do: quote(do: unquote(i)+1) # Macro's get inlined into the protocol itself
   def add(i, b), do: i+b
   def map(i, f), do: f.(i)
 

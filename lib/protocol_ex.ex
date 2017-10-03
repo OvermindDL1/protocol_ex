@@ -321,13 +321,13 @@ defmodule ProtocolEx do
     desc_name = get_desc_name(name)
     spec = desc_name.spec()
     impl_quoted = {:__block__, [],
-      [ quote do def __protocolEx__, do: unquote(Macro.escape(spec)) end
-      | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(name, &1, impls))
-      ] ++
+      Enum.map(impls, &quote(do: require unquote(&1))) ++
+      [ quote do def __protocolEx__, do: unquote(Macro.escape(spec)) end ] ++
+      Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(name, &1, impls)) ++
       Enum.flat_map(spec.callbacks, &load_test_from_impls(name, &1, impls)) ++
       load_tests_from_impls(spec.callbacks)
     }
-    # impl_quoted |> Macro.to_string() |> IO.puts
+    impl_quoted |> Macro.to_string() |> IO.puts
     if Code.ensure_loaded?(name) do
       :code.purge(name)
     end
@@ -422,7 +422,17 @@ defmodule ProtocolEx do
         if :erlang.function_exported(module, name, arity) do
           :ok
         else
-          raise  %MissingRequiredProtocolDefinition{proto: proto, impl: module, name: name, arity: arity}
+          try do
+            mname = String.to_existing_atom("MACRO-#{name}")
+            marity = arity + 1
+            if :erlang.function_exported(module, mname, marity) do
+              :ok
+            else
+              raise %MissingRequiredProtocolDefinition{proto: proto, impl: module, name: name, arity: arity}
+            end
+          rescue ArgumentError ->
+            raise %MissingRequiredProtocolDefinition{proto: proto, impl: module, name: name, arity: arity}
+          end
         end
       {_name, _arity, _, _} -> :ok
       {:extra, :test, _name, _meta, _checks} -> :ok
@@ -553,13 +563,29 @@ defmodule ProtocolEx do
   defp load_abstract_from_impls(pname, abstract, [impl | impls], returning) do
     case abstract do
       {name, arity, ast_head} ->
-        if Enum.any?(impl.module_info()[:exports], fn {^name, ^arity} -> true; _ -> false end) do
+        mname =
+          try do String.to_existing_atom("MACRO-#{name}")
+          rescue ArgumentError -> :"UNDEFINED-MACRO"
+          end
+        marity = arity + 1
+        if Enum.any?(impl.module_info()[:exports], fn
+          {^name, ^arity} -> true;
+          {^mname, ^marity} -> true;
+          _ -> false end) do
           {name, ast_head}
         else
           raise %MissingRequiredProtocolDefinition{proto: pname, impl: impl, name: name, arity: arity}
         end
       {name, arity, ast_head, _ast_fallback}  ->
-        if Enum.any?(impl.module_info()[:exports], fn {^name, ^arity} -> true; _ -> false end) do
+        mname =
+          try do String.to_existing_atom("MACRO-#{name}")
+          rescue ArgumentError -> :"UNDEFINED-MACRO"
+          end
+        marity = arity + 1
+        if Enum.any?(impl.module_info()[:exports], fn
+          {^name, ^arity} -> true;
+          {^mname, ^marity} -> true;
+          _ -> false end) do
           {name, ast_head}
         else
           :skip
