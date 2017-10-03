@@ -15,7 +15,19 @@ by adding `:protocol_ex` to your list of dependencies in `mix.exs`:
 
 ## Usage
 
-Currently there is no built-in compiler for auto-consolidation so manual consolidation must be done as shown at the last step below.  A compiler may be made later, or a PR is always nice.
+For auto-consolidation add the compiler to your `mix.exs` definition like (make certain it comes after the built-in elixir compiler):
+
+```elixir
+def project do
+  [
+    ...
+    compilers: Mix.compilers ++ [:protocol_ex],
+    ...
+  ]
+end
+```
+
+### Setup
 
 The below assumes:
 
@@ -128,7 +140,7 @@ end
 
 ### `resolveProtocolEx/2`
 
-`resolveProtocolEx/2` allows to dynamic consolidation.  It takes the protocol module name first, then a list of the unique names to consolidate.  If there is more than one implementation that can match a given value then they are used in the order of definition here (later the compiler should use a priority value if given, but for now it is manual).
+`resolveProtocolEx/2` allows to dynamic consolidation (or if you do not wish to use the compiler).  It takes the protocol module name first, then a list of the unique names to consolidate.  If there is more than one implementation that can match a given value then they are used in the order of definition here.
 
 #### Example
 

@@ -8,7 +8,7 @@ defmodule ConsolidateTest.Mixfile do
       elixir: "~> 1.5",
       start_permanent: Mix.env == :prod,
       compilers: Mix.compilers ++ [:protocol_ex],
-      deps: deps()
+      deps: deps(),
     ]
   end
 
