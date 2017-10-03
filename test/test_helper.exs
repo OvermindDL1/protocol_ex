@@ -7,7 +7,7 @@ import ProtocolEx
 # Only wrapping everything up in modules to prevent having to make more `.ex` files
 defmodule Testering do
 
-  defprotocolEx Blah do
+  defprotocol_ex Blah do
     def empty()
     def succ(a)
     def add(a, b)
@@ -53,7 +53,7 @@ defmodule Testering1 do
   alias Testering.Blah
   alias Testering.Functor
 
-  defimplEx Integer, i when is_integer(i), for: Blah do
+  defimpl_ex Integer, i when is_integer(i), for: Blah do
     @priority 1
     def empty(), do: 0
     defmacro succ(ivar), do: quote(do: unquote(ivar)+1)
@@ -101,7 +101,7 @@ defmodule TesteringResolved do # This thing could easily become a compiler plugi
     MineOlStruct,
   ])
 
-  ProtocolEx.resolveProtocolEx(Functor, [
+  ProtocolEx.resolve_protocol_ex(Functor, [
     Integer,
     List,
   ])

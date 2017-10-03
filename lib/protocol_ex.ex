@@ -102,6 +102,12 @@ defmodule ProtocolEx do
     ast
   end
 
+  defmacro defprotocol_ex(name, bodies) do
+    quote do
+      ProtocolEx.defprotocolEx(unquote(name), unquote(bodies))
+    end
+  end
+
 
 
   @doc """
@@ -114,6 +120,12 @@ defmodule ProtocolEx do
     quote do
       require unquote(desc_name)
       ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), __ENV__)
+    end
+  end
+
+  defmacro defimpl_ex(impl_name, matcher, opts, bodies) do
+    quote do
+      ProtocolEx.defimplEx(unquote(impl_name), unquote(matcher), unquote(opts), unquote(bodies))
     end
   end
 
@@ -312,6 +324,12 @@ defmodule ProtocolEx do
       __silence_alias_warnings__ = unquote(orig_name)
       unquote_splicing(requireds)
       ProtocolEx.resolveProtocolEx_do(unquote(name), unquote(impls))
+    end
+  end
+
+  defmacro resolve_protocol_ex(orig_name, impls, priority_sorted \\ false) when is_list(impls) do
+    quote do
+      ProtocolEx.resolveProtocolEx(unquote(orig_name), unquote(impls), unquote(priority_sorted))
     end
   end
 
