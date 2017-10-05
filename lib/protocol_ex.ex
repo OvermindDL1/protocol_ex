@@ -73,14 +73,14 @@ defmodule ProtocolEx do
       callbacks: [],
       as: nil,
       docs: %{},
-      types: [],
+      head_asts: [],
       cache: %{}, # Used only at compile-time, cleared before saving
     ]
   end
 
   def clean_spec(%Spec{} = spec) do
     %{spec|
-      types: [],
+      head_asts: [],
       cache: %{},
     }
   end
@@ -109,7 +109,7 @@ defmodule ProtocolEx do
       end
       |> case do {:__block__, meta, lines} ->
           lines = Enum.map(lines, fn
-            {type, _, _} = ast when type in [:def, :defp, :@] -> ast
+            {type, _, _} = ast when type in [:def, :defp, :defmacro, :defmacrop, :@] -> ast
             ast -> Macro.expand(ast, __CALLER__)
           end)
           {:__block__, meta, lines}
@@ -314,14 +314,14 @@ defmodule ProtocolEx do
 
     impl_quoted = {:__block__, [],
       Enum.map(impls, &quote(do: require unquote(&1))) ++
-      spec.types ++
+      spec.head_asts ++
       [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end
       | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(spec, proto_name, &1, impls))
       ] ++
       Enum.flat_map(spec.callbacks, &load_test_from_impls(proto_name, &1, impls)) ++
       load_tests_from_impls(spec.callbacks)
     }
-    # impl_quoted |> Macro.to_string() |> IO.puts
+    impl_quoted |> Macro.to_string() |> IO.puts
     if Code.ensure_loaded?(proto_name) do
       :code.purge(proto_name)
     end
@@ -369,7 +369,7 @@ defmodule ProtocolEx do
     spec = desc_name.spec()
     impl_quoted = {:__block__, [],
       Enum.map(impls, &quote(do: require unquote(&1))) ++
-      spec.types ++
+      spec.head_asts ++
       [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end ] ++
       Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(spec, name, &1, impls)) ++
       Enum.flat_map(spec.callbacks, &load_test_from_impls(name, &1, impls)) ++
@@ -444,11 +444,14 @@ defmodule ProtocolEx do
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
+  defp decompose_spec_element(_as, returned, {pt, _meta, _body} = ast) when pt in [
+    :defmacro, :defmacrop,
+    :spec, :type, :opaque,
+  ] do
+    %{returned | head_asts: [ast | returned.head_asts]}
+  end
   defp decompose_spec_element(_as, returned, {:@, _meta, [{:doc, _doc_meta, [_doc]}]} = doc_ast) do
     %{returned | cache: Map.put(returned.cache, :doc, doc_ast)}
-  end
-  defp decompose_spec_element(_as, returned, {:@, _meta, [{type, _doc_meta, _spec}]} = type_ast) when type in [:spec, :type, :opaque] do
-    %{returned | types: [type_ast | returned.types]}
   end
   defp decompose_spec_element(_as, _returned, unhandled_elem), do: raise %InvalidProtocolSpecification{ast: unhandled_elem}
 
@@ -457,13 +460,13 @@ defmodule ProtocolEx do
   defp decompose_spec_head(as, {:when, _when_meta, [head, _guard]}) do
     decompose_spec_head(as, head)
   end
-  defp decompose_spec_head(as, {name, _name_meta, args} = head) when is_atom(name) and is_list(args) do
-    if as != nil and args != [] do
-      Enum.find(args, false, fn
-        {^as, _, scope} when is_atom(scope) -> true
-        _ -> false
-      end) || raise %MissingAtInArgs{as: as, ast: head}
-    end
+  defp decompose_spec_head(_as, {name, _name_meta, args} = _head) when is_atom(name) and is_list(args) do
+    # if as != nil and args != [] do
+    #   Enum.find(args, false, fn
+    #     {^as, _, scope} when is_atom(scope) -> true
+    #     _ -> false
+    #   end) || raise %MissingAtInArgs{as: as, ast: head}
+    # end
     {name, length(args)}
   end
   defp decompose_spec_head(_as, head), do: raise %InvalidProtocolSpecification{ast: head}
@@ -661,7 +664,6 @@ defmodule ProtocolEx do
           _ -> false end) do
           {name, ast_head}
         else
-          throw impl.module_info()[:exports]
           raise %MissingRequiredProtocolDefinition{proto: pname, impl: impl, name: name, arity: arity}
         end
       {name, arity, ast_head, _ast_fallback}  ->
