@@ -3,19 +3,19 @@ defmodule ProtocolExTest do
   doctest ProtocolEx
 
   test "the truth" do
-    assert 0 === Testering.Blah.Integer.empty()
+    assert 0 === Blah.Integer.empty()
 
-    assert 0 === Testering.Blah.empty(42)
-    assert {Vwoop, 0} === Testering.Blah.empty({Vwoop, 42})
-    assert %MyStruct{a: 0} === Testering.Blah.empty(%MyStruct{})
+    assert 0 === Blah.empty(42)
+    assert {Vwoop, 0} === Blah.empty({Vwoop, 42})
+    assert %MyStruct{a: 0} === Blah.empty(%MyStruct{})
 
-    assert 43 === Testering.Blah.succ(42)
-    assert {Vwoop, 43} === Testering.Blah.succ({Vwoop, 42})
-    assert %MyStruct{a: 43} === Testering.Blah.succ(%MyStruct{a: 42})
+    assert 43 === Blah.succ(42)
+    assert {Vwoop, 43} === Blah.succ({Vwoop, 42})
+    assert %MyStruct{a: 43} === Blah.succ(%MyStruct{a: 42})
 
-    assert 43 === Testering.Blah.add(42, 1)
-    assert {Vwoop, 43} === Testering.Blah.add({Vwoop, 42}, 1)
-    assert %MyStruct{a: 43} === Testering.Blah.add(%MyStruct{a: 42}, 1)
+    assert 43 === Blah.add(42, 1)
+    assert {Vwoop, 43} === Blah.add({Vwoop, 42}, 1)
+    assert %MyStruct{a: 43} === Blah.add(%MyStruct{a: 42}, 1)
   end
 
 
@@ -23,9 +23,9 @@ defmodule ProtocolExTest do
 
   property "Integers in the Blah protocol" do
     check all(i <- integer(), j <- integer()) do
-      assert 0 === Testering.Blah.empty(i)
-      assert (i + 1) === Testering.Blah.succ(i)
-      assert (i + j) === Testering.Blah.add(i, j)
+      assert 0 === Blah.empty(i)
+      assert (i + 1) === Blah.succ(i)
+      assert (i + j) === Blah.add(i, j)
     end
   end
 end

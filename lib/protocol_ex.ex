@@ -3,7 +3,6 @@ defmodule ProtocolEx do
   Matcher protocol control module
   """
 
-
   defmodule InvalidProtocolSpecification do
     @moduledoc """
     This is raised when a protocol definition is invalid.
@@ -72,6 +71,7 @@ defmodule ProtocolEx do
     defstruct [
       callbacks: [],
       as: nil,
+      location: [],
       docs: %{},
       head_asts: [],
       cache: %{}, # Used only at compile-time, cleared before saving
@@ -96,7 +96,7 @@ defmodule ProtocolEx do
   defmacro defprotocolEx(name, opts \\ [], [do: body]) do
     parsed_name = get_atom_name(name)
     # desc_name = get_desc_name(parsed_name)
-    desc_name = get_atom_name_with(name, @desc_name)
+    desc_name = get_atom_name_with(name, @desc_name) |> get_atom_name()
     as =
       case opts[:as] do
         nil -> nil
@@ -114,18 +114,18 @@ defmodule ProtocolEx do
           end)
           {:__block__, meta, lines}
       end
-    spec = decompose_spec(as, body)
+    spec = decompose_spec(__CALLER__, as, body)
     spec = verify_valid_spec(spec)
-    ast =
+    desc_body =
       quote do
-        defmodule unquote(desc_name) do
-          Module.register_attribute(__MODULE__, unquote(@desc_attr), persist: true)
-          @protocol_ex_desc unquote(parsed_name)
-          def spec, do: unquote(Macro.escape(spec))
-        end
+        Module.register_attribute(__MODULE__, unquote(@desc_attr), persist: true)
+        @protocol_ex_desc unquote(parsed_name)
+        def spec, do: unquote(Macro.escape(spec))
       end
-    # ast |> Macro.to_string() |> IO.puts()
-    ast
+    # desc_body |> Macro.to_string() |> IO.puts()
+    Module.create(desc_name, desc_body, Macro.Env.location(__CALLER__))
+    consolidate(parsed_name, [impls: []]) # A temporary hoister
+    :ok
   end
 
   defmacro defprotocol_ex(name, opts \\ [], bodies) do
@@ -259,6 +259,7 @@ defmodule ProtocolEx do
             end
           end)
           |> case do impls ->
+# IO.inspect {:consolidating_all, protocols}
             protocols
             |> Enum.map(fn proto_name ->
               consolidate(proto_name, impls: impls)
@@ -305,29 +306,52 @@ defmodule ProtocolEx do
       end
       |> Enum.sort_by(fn {name, prio, _} -> {prio, to_string(name)} end, &>=/2) # Sort by priority, then by binary name
       |> Enum.map(&elem(&1, 0))
-    proto_desc = Module.concat(proto_name, @desc_name)
-    spec =
-      case proto_desc.spec() do
-        %Spec{} = spec -> spec
-        err -> throw {:invalid_spec, err}
-      end
 
-    impl_quoted = {:__block__, [],
-      Enum.map(impls, &quote(do: require unquote(&1))) ++
-      spec.head_asts ++
-      [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end
-      | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(spec, proto_name, &1, impls))
-      ] ++
-      Enum.flat_map(spec.callbacks, &load_test_from_impls(proto_name, &1, impls)) ++
-      load_tests_from_impls(spec.callbacks)
-    }
-    impl_quoted |> Macro.to_string() |> IO.puts
-    if Code.ensure_loaded?(proto_name) do
-      :code.purge(proto_name)
+    if :erlang.function_exported(proto_name, :__proto_ex_consolidated__, 0) and
+      :erlang.function_exported(proto_name, :__proto_ex_impls__, 0) and
+      # proto_name.__proto_ex_consolidated__() and
+      proto_name.__proto_ex_impls__() === impls do
+      proto_name
+    else
+# IO.inspect {:consolidate, proto_name, impls, if(:erlang.function_exported(proto_name, :__proto_ex_impls__, 0), do: proto_name.__proto_ex_impls__(), else: :does_not_exist)}
+      proto_desc = Module.concat(proto_name, @desc_name)
+      spec =
+        case proto_desc.spec() do
+          %Spec{} = spec -> spec
+          err -> throw {:invalid_spec, err}
+        end
+
+      Enum.map(List.wrap(spec.cache[:requiring]), fn module ->
+        if not Code.ensure_loaded?(module) or
+          not :erlang.function_exported(module, :__proto_ex_consolidated__, 0) or
+          not module.__proto_ex_consolidated__() do
+          consolidate(module)
+        end
+      end)
+
+      impl_quoted = {:__block__, [],
+        Enum.map(impls, &quote(do: require unquote(&1))) ++
+        spec.head_asts ++
+        [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end,
+          quote do def __proto_ex_consolidated__, do: unquote(if(impls === [], do: false, else: true)) end,
+          quote do def __proto_ex_impls__, do: unquote(impls) end
+        | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(spec, proto_name, &1, impls))
+        ] ++
+        Enum.flat_map(spec.callbacks, &load_test_from_impls(proto_name, &1, impls)) ++
+        load_tests_from_impls(spec.callbacks)
+      }
+      # impl_quoted |> Macro.to_string() |> IO.puts
+      if Code.ensure_loaded?(proto_name) do
+# IO.inspect {:purging, proto_name}
+        :code.purge(proto_name)
+      end
+      Code.compiler_options(ignore_module_conflict: true)
+      Module.create(proto_name, impl_quoted, spec.location)
+      Code.compiler_options(ignore_module_conflict: false)
+      if(true, do: proto_name.__tests_pex__([]))
+# IO.inspect {:consolidated, proto_name}
+      proto_name
     end
-    Module.create(proto_name, impl_quoted, Macro.Env.location(__ENV__))
-    if(true, do: proto_name.__tests_pex__([]))
-    proto_name
   end
 
   @doc """
@@ -370,7 +394,10 @@ defmodule ProtocolEx do
     impl_quoted = {:__block__, [],
       Enum.map(impls, &quote(do: require unquote(&1))) ++
       spec.head_asts ++
-      [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end ] ++
+      [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end,
+        quote do def __proto_ex_consolidated__, do: unquote(if(impls === [], do: false, else: true)) end,
+        quote do def __proto_ex_impls__, do: unquote(impls) end
+      ] ++
       Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(spec, name, &1, impls)) ++
       Enum.flat_map(spec.callbacks, &load_test_from_impls(name, &1, impls)) ++
       load_tests_from_impls(spec.callbacks)
@@ -379,7 +406,9 @@ defmodule ProtocolEx do
     if Code.ensure_loaded?(name) do
       :code.purge(name)
     end
-    Module.create(name, impl_quoted, Macro.Env.location(__CALLER__))
+    Code.compiler_options(ignore_module_conflict: true)
+    Module.create(name, impl_quoted, spec.location)
+    Code.compiler_options(ignore_module_conflict: false)
     if(true, do: name.__tests_pex__([])) # TODO: Make this configurable
     :ok
   end
@@ -405,16 +434,16 @@ defmodule ProtocolEx do
   defp get_impl_name(name, impl_name) when is_atom(name), do: Module.concat(name, impl_name)
 
 
-  defp decompose_spec(as, body), do: decompose_spec(as, %Spec{as: as}, body)
-  defp decompose_spec(as, returned, {:__block__, _, body}), do: decompose_spec(as, returned, body)
-  defp decompose_spec(_as, returned, []), do: returned
-  defp decompose_spec(as, returned, [elem | rest]), do: decompose_spec(as, decompose_spec_element(as, returned, elem), rest)
-  defp decompose_spec(as, returned, body), do: decompose_spec(as, returned, [body])
+  defp decompose_spec(env, as, body), do: decompose_spec(env, as, %Spec{as: as, location: Macro.Env.location(env)}, body)
+  defp decompose_spec(env, as, returned, {:__block__, _, body}), do: decompose_spec(env, as, returned, body)
+  defp decompose_spec(_env, _as, returned, []), do: returned
+  defp decompose_spec(env, as, returned, [elem | rest]), do: decompose_spec(env, as, decompose_spec_element(env, as, returned, elem), rest)
+  defp decompose_spec(env, as, returned, body), do: decompose_spec(env, as, returned, [body])
 
 
-  defp decompose_spec_element(as, returned, elem)
+  defp decompose_spec_element(env, as, returned, elem)
   # defp decompose_spec_element(returned, {:def, meta, [{name, name_meta, noargs}]}) when is_atom(noargs), do: decompose_spec_element(returned, {:def, meta, [{name, name_meta, []}]})
-  defp decompose_spec_element(as, returned, {:def, _meta, [head]} = elem) do
+  defp decompose_spec_element(_env, as, returned, {:def, _meta, [head]} = elem) do
     {name, args_length} = decompose_spec_head(as, head)
     callbacks = [{name, args_length, elem} | returned.callbacks]
     doc = returned.cache[:doc]
@@ -424,7 +453,7 @@ defmodule ProtocolEx do
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
-  defp decompose_spec_element(as, returned, {:def, meta, [head, _body]}=elem) do
+  defp decompose_spec_element(_env, as, returned, {:def, meta, [head, _body]}=elem) do
     {name, args_length} = decompose_spec_head(as, head)
     head = {:def, meta, [head]}
     callbacks = [{name, args_length, head, elem} | returned.callbacks]
@@ -435,7 +464,7 @@ defmodule ProtocolEx do
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
-  defp decompose_spec_element(_as, returned, {:deftest, meta, [{name, _, scope}, checks]}) when is_atom(scope) do
+  defp decompose_spec_element(_env, _as, returned, {:deftest, meta, [{name, _, scope}, checks]}) when is_atom(scope) do
     callbacks = [{:extra, :test, name, meta, checks} | returned.callbacks]
     doc = returned.cache[:doc]
     %{returned |
@@ -444,16 +473,35 @@ defmodule ProtocolEx do
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
-  defp decompose_spec_element(_as, returned, {pt, _meta, _body} = ast) when pt in [
+  defp decompose_spec_element(_env, _as, returned, {pt, _meta, _body} = ast) when pt in [
     :defmacro, :defmacrop,
     :spec, :type, :opaque,
+    :moduledoc,
   ] do
     %{returned | head_asts: [ast | returned.head_asts]}
   end
-  defp decompose_spec_element(_as, returned, {:@, _meta, [{:doc, _doc_meta, [_doc]}]} = doc_ast) do
+  defp decompose_spec_element(_env, _as, returned, {:@, _meta, [{:doc, _doc_meta, [_doc]}]} = doc_ast) do
     %{returned | cache: Map.put(returned.cache, :doc, doc_ast)}
   end
-  defp decompose_spec_element(_as, _returned, unhandled_elem), do: raise %InvalidProtocolSpecification{ast: unhandled_elem}
+  defp decompose_spec_element(env, _as, returned, {:@, _meta, [{:extends, _doc_meta, extending}]}) do
+    extending = Enum.map(extending, fn
+      {:__aliases__, _meta, names} ->
+        m = Module.concat(names)
+        env.aliases[m] || m
+      name when is_atom(name) -> name
+    end)
+    %{returned | cache: Map.put(returned.cache, :extending, extending ++ List.wrap(returned.cache[:extending]))}
+  end
+  defp decompose_spec_element(env, _as, returned, {:require, _, requiring}) do
+    requiring = Enum.map(requiring, fn
+      {:__aliases__, _meta, names} ->
+        m = Module.concat(names)
+        env.aliases[m] || m
+      name when is_atom(name) -> name
+    end)
+    %{returned | cache: Map.put(returned.cache, :requiring, requiring ++ List.wrap(returned.cache[:requiring]))}
+  end
+  defp decompose_spec_element(_env, _as, _returned, unhandled_elem), do: raise %InvalidProtocolSpecification{ast: unhandled_elem}
 
 
   defp decompose_spec_head(as, head)
@@ -627,7 +675,7 @@ defmodule ProtocolEx do
         doc = quote do @doc unquote("See `#{name}/1`") end
         returning = returning ++ [catch_all, doc]
         arg = Macro.var(spec.as || :unused, __MODULE__)
-        ast_head = {def, meta, [{name, name_meta, [arg]}]}
+        ast_head = {def, [generated: true] ++ meta, [{name, name_meta, [arg]}]}
         load_abstract_from_impls(spec, pname, {name, 1, ast_head}, [], returning)
       {name, arity, ast_head} ->
         args = get_args_from_head(ast_head)
@@ -638,11 +686,12 @@ defmodule ProtocolEx do
               {:%{}, [],
                 [proto: pname, name: name, arity: arity, value: args]
                }]}]}
-        catch_all = append_body_to_head(ast_head, body)
+        {c, cmeta, a} = append_body_to_head(ast_head, body)
+        catch_all = {c, [generated: true] ++ cmeta, a}
         :lists.reverse(returning, [catch_all])
       {name, 0, _ast_head, {def, meta, [{name, name_meta, []}, _body]} = ast_fallback}  ->
         arg = Macro.var(spec.as || :unused, __MODULE__)
-        ast_bounce = {def, meta, [{name, name_meta, [arg]}, [do: quote do
+        ast_bounce = {def, [generated: true] ++ meta, [{name, name_meta, [arg]}, [do: quote do
             _ = unquote(arg)
             unquote(name)()
           end]]}
