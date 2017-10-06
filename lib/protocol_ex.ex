@@ -183,31 +183,64 @@ defmodule ProtocolEx do
           Module.register_attribute(__MODULE__, :priority, persist: true)
         end
       ] ++
-      case opts[:inline] do
+      (case opts[:inline] do
         nil -> [quote do def __inlined__(_), do: nil end]
         # :all -> quote do def __inlined__(_), do: true end
         funs when is_list(funs) ->
           funs
           |> Enum.map(fn {fun, arity} ->
-            Macro.prewalk(body, [], fn
-              ({:def, _, [{^fun, _, bindings}, _]} = ast, acc) when length(bindings) === arity ->
-                {ast, [ast | acc]}
-              ({:def, _, [{:when, _, [{^fun, _, bindings}, _]}, _]} = ast, acc) when length(bindings) === arity ->
-                {ast, [ast | acc]}
-              (ast, acc) ->
-                {ast, acc}
+            Macro.prewalk(body, {[], false}, fn
+              ({:def, _, [{^fun, _, bindings}, _]} = ast, {acc, false}) when length(bindings) === arity ->
+                {ast, {[ast | acc], false}}
+              ({:def, _, [{:when, _, [{^fun, _, bindings}, _]}, _]} = ast, {acc, false}) when length(bindings) === arity ->
+                {ast, {[ast | acc], false}}
+              ({:@, _, [{:ignore, _, _}]}, {acc, false}) ->
+                {nil, {acc, true}}
+              (ast, {acc, _ignore_next}) ->
+                {ast, {acc, false}}
             end)
             |> case do
-              {_body, ast} -> quote do def __inlined__({unquote(fun), unquote(arity)}), do: unquote(Macro.escape(ast)) end
+              {_body, {ast, _ignore_next}} ->
+                quote do def __inlined__({unquote(fun), unquote(arity)}), do: unquote(Macro.escape(ast)) end
             end
           end)
           |> List.wrap()
           |> Enum.reverse([quote do def __inlined__(_), do: nil end])
-      end ++
-      List.wrap(body) ++
-      test_asts
+      end
+      |> case do
+        old_inlines ->
+          Macro.prewalk(body, {%{}, false}, fn
+            ({:def, _, [{fun, _, bindings}, _]} = ast, {acc, inline}) ->
+              arity = length(bindings)
+              if inline or Map.get(acc, {fun, arity}, false) do
+                acc = Map.update(acc, {fun, arity}, [ast], &[ast | List.wrap(&1)])
+                {ast, {acc, false}}
+              else
+                {ast, {acc, false}}
+              end
+            ({:def, _, [{:when, _, [{fun, _, bindings}, _]}, _]} = ast, {acc, inline}) ->
+              arity = length(bindings)
+              if inline or Map.get(acc, {fun, arity}, false) do
+                acc = Map.update(acc, {fun, arity}, [ast], &[ast | List.wrap(&1)])
+                {ast, {acc, false}}
+              else
+                {ast, {acc, false}}
+              end
+            ({:@, _, [{:inline, _, _}]}, {acc, false}) -> {nil, {acc, true}}
+            (ast, {acc, _inline_next}) -> {ast, {acc, false}}
+          end)
+          |> case do
+            {body, {asts, _inline_next}} ->
+              Enum.map(asts, fn {{fun, arity}, ast} ->
+                quote do def __inlined__({unquote(fun), unquote(arity)}), do: unquote(Macro.escape(ast)) end
+              end) ++
+              old_inlines ++
+              List.wrap(body) ++
+              test_asts
+          end
+      end)
     }
-    # impl_quoted |> Macro.to_string() |> IO.puts
+    impl_quoted |> Macro.to_string() |> IO.puts
     if Code.ensure_loaded?(impl_name) do
       :code.purge(impl_name)
     end
@@ -331,7 +364,7 @@ defmodule ProtocolEx do
 
       impl_quoted = {:__block__, [],
         Enum.map(impls, &quote(do: require unquote(&1))) ++
-        spec.head_asts ++
+        :lists.reverse(spec.head_asts) ++
         [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end,
           quote do def __proto_ex_consolidated__, do: unquote(if(impls === [], do: false, else: true)) end,
           quote do def __proto_ex_impls__, do: unquote(impls) end
@@ -393,7 +426,7 @@ defmodule ProtocolEx do
     spec = desc_name.spec()
     impl_quoted = {:__block__, [],
       Enum.map(impls, &quote(do: require unquote(&1))) ++
-      spec.head_asts ++
+      :lists.reverse(spec.head_asts) ++
       [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end,
         quote do def __proto_ex_consolidated__, do: unquote(if(impls === [], do: false, else: true)) end,
         quote do def __proto_ex_impls__, do: unquote(impls) end
@@ -474,7 +507,7 @@ defmodule ProtocolEx do
     }
   end
   defp decompose_spec_element(_env, _as, returned, {pt, _meta, _body} = ast) when pt in [
-    :defmacro, :defmacrop,
+    :defmacro, :defmacrop, :defp,
     :spec, :type, :opaque,
     :moduledoc,
   ] do
