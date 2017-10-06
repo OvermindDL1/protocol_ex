@@ -240,7 +240,7 @@ defmodule ProtocolEx do
           end
       end)
     }
-    impl_quoted |> Macro.to_string() |> IO.puts
+    # impl_quoted |> Macro.to_string() |> IO.puts
     if Code.ensure_loaded?(impl_name) do
       :code.purge(impl_name)
     end
