@@ -9,15 +9,19 @@ defmodule ProtocolEx.Mixfile do
       description: description(),
       package: package(),
       docs: [
-          #logo: "path/to/logo.png",
-          extras: ["README.md"],
-          main: "readme",
-          assets: "deps/makedown/priv/ex_doc/assets",
-          # Extra CSS
-          before_closing_head_tag: fn _ -> ~S(<link rel="stylesheet" href="assets/makedown.css"/>) end,
-          # Extra Javascript
-          before_closing_body_tag: fn _ -> ~S(<script src="assets/makedown.js"></script>) end
-          ],
+        extras: ["README.md"],
+        main: "readme",
+        markdown_processor: ExDocMakeup,
+        markdown_processor_options: [
+          lexer_options: %{
+            "elixir" => [
+              extra_declarations: [
+                "defimplEx", "defimpl_ex",
+                "defprotocolEx", "defprotocol_ex"],
+              extra_def_like: ["deftest"]]
+          }
+        ]
+      ],
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
       deps: deps(),
@@ -52,11 +56,9 @@ defmodule ProtocolEx.Mixfile do
     [
       # Optional dependencies
       {:stream_data, "~> 0.3.0", optional: true, only: [:dev, :test]},
-      # Development and documentation only
-      {:makeup, "~> 0.2.0", only: [:dev]},
-      {:makeup_elixir, "~> 0.2.0", only: [:dev]},
-      {:makedown, "~> 0.2.0", only: [:dev]},
-      {:ex_doc, "~> 0.16.3", only: [:dev]},
+       # Documentation
+      {:ex_doc, ">= 0.18.1", only: [:dev]},
+      {:ex_doc_makeup, ">= 0.1.0", only: [:dev]},
       # Testing only
       {:cortex, "~> 0.2.0", only: [:test]},
       {:benchee, "~> 0.9.0", only: [:test]},
