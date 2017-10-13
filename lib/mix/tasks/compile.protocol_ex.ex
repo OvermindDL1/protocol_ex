@@ -13,6 +13,7 @@ defmodule Mix.Tasks.Compile.ProtocolEx do
     if(verbose, do: IO.puts("Consolidating ProtocolEx's project-wide..."))
     ProtocolEx.consolidate_all([output: output, verbose: verbose])
     if(verbose, do: IO.puts("Consolidating ProtocolEx's project-wide complete."))
+    :ok
   end
 
   @doc """
