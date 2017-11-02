@@ -3,15 +3,14 @@ defmodule Mix.Tasks.Compile.ProtocolEx do
 
   @spec run(OptionParser.argv) :: :ok
   def run(args) do
-    config = Mix.Project.config
+    #config = Mix.Project.config
     # Mix.Task.run "compile", args
     {opts, _, _} = OptionParser.parse(args, switches: [verbose: :boolean])
 
-    output = Mix.Project.consolidation_path(config)
     verbose = opts[:verbose]
 
     if(verbose, do: IO.puts("Consolidating ProtocolEx's project-wide..."))
-    ProtocolEx.consolidate_all([output: output, verbose: verbose])
+    ProtocolEx.consolidate_all(opts)
     if(verbose, do: IO.puts("Consolidating ProtocolEx's project-wide complete."))
     :ok
   end
