@@ -295,7 +295,7 @@ defmodule ProtocolEx do
 # IO.inspect {:consolidating_all, protocols}
             protocols
             |> Enum.map(fn proto_name ->
-              consolidate(proto_name, impls: impls)
+              consolidate(proto_name, [impls: impls, output_beam: opts[:output_beam]])
             end)
           end
         end
@@ -358,7 +358,7 @@ defmodule ProtocolEx do
         if not Code.ensure_loaded?(module) or
           not :erlang.function_exported(module, :__proto_ex_consolidated__, 0) or
           not module.__proto_ex_consolidated__() do
-          consolidate(module)
+          consolidate(module, [output_beam: opts[:output_beam]])
         end
       end)
 
@@ -379,7 +379,21 @@ defmodule ProtocolEx do
         :code.purge(proto_name)
       end
       Code.compiler_options(ignore_module_conflict: true)
-      Module.create(proto_name, impl_quoted, spec.location)
+      {:module, beam_name, beam_data, _exports} = Module.create(proto_name, impl_quoted, spec.location)
+      case opts[:output_beam] do
+        base_path when is_binary(base_path) -> base_path
+        true -> apply(Mix.Project, :build_path, [])
+        _ -> nil
+      end
+      |> case do
+        nil -> if(opts[:verbose], do: IO.puts("ProtocolEx inline module: #{beam_name}"))
+        base_path ->
+          beam_filename = "#{beam_name}.beam"
+          glob = Path.join([base_path, "**", beam_filename])
+          [path] = Path.wildcard(glob) # TODO:  Add error reporting on this...
+          File.write!(path, beam_data)
+          if(opts[:verbose], do: IO.puts("ProtocolEx beam module: #{beam_filename}"))
+      end
       Code.compiler_options(ignore_module_conflict: false)
       if(true, do: proto_name.__tests_pex__([]))
 # IO.inspect {:consolidated, proto_name}

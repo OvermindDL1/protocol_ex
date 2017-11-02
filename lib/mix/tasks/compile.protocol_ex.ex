@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Compile.ProtocolEx do
     verbose = opts[:verbose]
 
     if(verbose, do: IO.puts("Consolidating ProtocolEx's project-wide..."))
-    ProtocolEx.consolidate_all(opts)
+    ProtocolEx.consolidate_all([output_beam: true] ++ opts)
     if(verbose, do: IO.puts("Consolidating ProtocolEx's project-wide complete."))
     :ok
   end
