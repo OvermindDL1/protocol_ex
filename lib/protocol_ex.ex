@@ -163,9 +163,9 @@ defmodule ProtocolEx do
   @doc false
   def defimplEx_do(impl_name, matcher, [for: name], [do: body], opts, caller_env) do
     desc_name = get_desc_name(name)
-    impl_name = get_atom_name(impl_name, caller_env)
+    impl_name = get_atom_name(impl_name)
     impl_name = get_impl_name(name, impl_name)
-    impl_name = get_atom_name(impl_name, caller_env)
+    impl_name = get_atom_name(impl_name)
     spec = desc_name.spec()
 
     test_asts = gen_impl_test_asts(spec)
