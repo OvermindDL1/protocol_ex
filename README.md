@@ -10,7 +10,7 @@ Performs matching for protocol implentations instead of being limited to certain
 by adding `:protocol_ex` to your list of dependencies in `mix.exs`:
 
 ```elixir
-{:protocol_ex, "~> 0.2.0"},
+{:protocol_ex, "~> 0.3.0"},
 ```
 
 ## Usage
