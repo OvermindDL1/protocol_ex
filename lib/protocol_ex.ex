@@ -94,9 +94,8 @@ defmodule ProtocolEx do
   Define a protocol behaviour.
   """
   defmacro defprotocolEx(name, opts \\ [], [do: body]) do
-    parsed_name = get_atom_name(name)
-    # desc_name = get_desc_name(parsed_name)
-    desc_name = get_atom_name_with(name, @desc_name) |> get_atom_name()
+    parsed_name = get_atom_name(name, __CALLER__)
+    desc_name = get_atom_name_with(name, @desc_name) |> get_atom_name(__CALLER__)
     as =
       case opts[:as] do
         nil -> nil
@@ -125,7 +124,13 @@ defmodule ProtocolEx do
     # desc_body |> Macro.to_string() |> IO.puts()
     Module.create(desc_name, desc_body, Macro.Env.location(__CALLER__))
     consolidate(parsed_name, [impls: []]) # A temporary hoister
-    :ok
+    if parsed_name == name do
+      :ok
+    else
+      quote do
+        alias unquote(parsed_name), as: unquote(name)
+      end
+    end
   end
 
   defmacro defprotocol_ex(name, opts \\ [], bodies) do
@@ -157,11 +162,10 @@ defmodule ProtocolEx do
 
   @doc false
   def defimplEx_do(impl_name, matcher, [for: name], [do: body], opts, caller_env) do
-    name = get_atom_name(name)
     desc_name = get_desc_name(name)
-    impl_name = get_atom_name(impl_name)
+    impl_name = get_atom_name(impl_name, caller_env)
     impl_name = get_impl_name(name, impl_name)
-    impl_name = get_atom_name(impl_name)
+    impl_name = get_atom_name(impl_name, caller_env)
     spec = desc_name.spec()
 
     test_asts = gen_impl_test_asts(spec)
@@ -470,8 +474,12 @@ defmodule ProtocolEx do
 
 
 
-  defp get_atom_name(name) when is_atom(name), do: name
-  defp get_atom_name({:__aliases__, _, names}) when is_list(names), do: Module.concat(names)
+  defp get_atom_name(name, env \\ %{module: nil})
+  defp get_atom_name(name, env) when is_atom(name), do: Module.concat(get_env_name(env)++[name])
+  defp get_atom_name({:__aliases__, _, names}, env) when is_list(names), do: Module.concat(get_env_name(env)++names)
+
+  defp get_env_name(%{module: nil}), do: []
+  defp get_env_name(%{module: module}), do: [module]
 
   defp get_atom_name_with(name, at_end) when is_atom(name) and is_atom(at_end), do: {:__aliases__, [alias: false], [name, at_end]}
   defp get_atom_name_with({:__aliases__, meta, names}, at_end) when is_list(names) and is_atom(at_end), do: {:__aliases__, meta, names ++ [at_end]}

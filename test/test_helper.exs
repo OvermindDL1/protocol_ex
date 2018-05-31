@@ -8,6 +8,31 @@ end
 
 import ProtocolEx
 
+defmodule EmbTesting do
+  defprotocol_ex Emb do
+    def add(a)
+  end
+
+  defimpl_ex Atom, a when is_atom(a), for: Emb do
+    def add(a), do: a
+  end
+  defimpl_ex Binary, b when is_binary(b), for: EmbTesting.Emb do
+    def add(b), do: b
+  end
+end
+
+## This can't be in the same file as the module definition as the module
+## is not compiled by the time this is ready.
+#defimpl_ex Integer, i when is_integer(i), for: EmbTesting.Emb do
+#  def add(a), do: a+1
+#end
+
+defmodule MoreEmbTesting do
+  defimpl_ex Float, f when is_float(f), for: EmbTesting.Emb do
+    def add(a), do: a+1.0
+  end
+end
+
 defprotocol_ex Blah do
   def empty()
   def succ(a)

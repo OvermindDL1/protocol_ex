@@ -21,5 +21,6 @@ defmodule Mix.Tasks.Compile.ProtocolEx do
   def clean do
     config = Mix.Project.config
     File.rm_rf(Mix.Project.consolidation_path(config))
+    :ok
   end
 end
