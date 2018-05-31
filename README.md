@@ -2,7 +2,7 @@
 
 Extended Protocol library.
 
-Performs matching for protocol implentations instead of being limited to certain base types as in standard Elixir Protocols.
+Performs matching for protocol implementations instead of being limited to certain base types as in standard Elixir Protocols.
 
 ## Installation
 
@@ -37,14 +37,14 @@ import ProtocolEx
 
 ### `defprotocolEx/2`
 
-`defprotocolEx/2` is used like `defmodule` in that it takes a module name to become and the body. The body can contains plain function heads like:
+`defprotocolEx/2` is used like `defmodule` in that it takes a module name to become and the body. The body can contain plain function heads like:
 
 ```elixir
 def something(a)
 def blah(a, b)
 ```
 
-Or it can contains full bodies:
+Or it can contain full bodies:
 
 ```elixir
 def bloop(a) do
@@ -52,7 +52,7 @@ def bloop(a) do
 end
 ```
 
-Plain heads **must** be implemented in an implementation, not to do so will raise an error.
+Plain heads **must** be implemented in an implementation, not doing so will raise an error.
 
 Full body functions supply the fallback, if an implementation does not supply an implementation of it then it will fall back to the fallback implementation.
 
