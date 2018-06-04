@@ -23,6 +23,11 @@ defmodule ProtocolExTest do
     assert %Mod111{a: 0} = ModProto.blah(%Mod111{a: 1})
   end
 
+  test "Defaults" do
+    assert 2 = Defaults.succ(1)
+    assert 3 = Defaults.succ(1, 2)
+  end
+
 
   use ExUnitProperties
 

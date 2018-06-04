@@ -122,7 +122,7 @@ defmodule ProtocolEx do
         @protocol_ex_desc unquote(parsed_name)
         def spec, do: unquote(Macro.escape(spec))
       end
-    # desc_body |> Macro.to_string() |> IO.puts()
+    #desc_body |> Macro.to_string() |> Code.format_string!() |> IO.puts()
     Module.create(desc_name, desc_body, Macro.Env.location(__CALLER__))
     consolidate(parsed_name, [impls: []]) # A temporary hoister
     if parsed_name == name do
@@ -386,6 +386,8 @@ defmodule ProtocolEx do
         :code.purge(proto_name)
       end
       Code.compiler_options(ignore_module_conflict: true)
+      #IO.inspect({proto_name, impl_quoted, spec.location}, label: :CONSOLIDATED)
+      #impl_quoted |> Macro.to_string() |> Code.format_string!() |> IO.puts()
       {:module, beam_name, beam_data, _exports} = Module.create(proto_name, impl_quoted, spec.location)
       case opts[:output_beam] do
         base_path when is_binary(base_path) -> base_path
@@ -515,8 +517,9 @@ defmodule ProtocolEx do
   defp decompose_spec_element(env, as, returned, elem)
   # defp decompose_spec_element(returned, {:def, meta, [{name, name_meta, noargs}]}) when is_atom(noargs), do: decompose_spec_element(returned, {:def, meta, [{name, name_meta, []}]})
   defp decompose_spec_element(_env, as, returned, {:def, _meta, [head]} = elem) do
-    {name, args_length} = decompose_spec_head(as, head)
-    callbacks = [{name, args_length, elem} | returned.callbacks]
+    {name, args_length, defaults} = decompose_spec_head(as, head)
+    elem = Macro.prewalk(elem, fn {:\\, _, [b, _]} -> b; a -> a end)
+    callbacks = [{name, args_length, elem}] ++ defaults ++ returned.callbacks
     doc = returned.cache[:doc]
     %{returned |
       callbacks: callbacks,
@@ -524,10 +527,12 @@ defmodule ProtocolEx do
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
-  defp decompose_spec_element(_env, as, returned, {:def, meta, [head, _body]}=elem) do
-    {name, args_length} = decompose_spec_head(as, head)
+  defp decompose_spec_element(_env, as, returned, {:def, meta, [head, body]}) do
+    {name, args_length, defaults} = decompose_spec_head(as, head)
+    head = Macro.prewalk(head, fn {:\\, _, [b, _]} -> b; a -> a end)
+    elem = {:def, meta, [head, body]}
     head = {:def, meta, [head]}
-    callbacks = [{name, args_length, head, elem} | returned.callbacks]
+    callbacks = [{name, args_length, head, elem}] ++ defaults ++ returned.callbacks
     doc = returned.cache[:doc]
     %{returned |
       callbacks: callbacks,
@@ -579,16 +584,34 @@ defmodule ProtocolEx do
   defp decompose_spec_head(as, {:when, _when_meta, [head, _guard]}) do
     decompose_spec_head(as, head)
   end
-  defp decompose_spec_head(_as, {name, _name_meta, args} = _head) when is_atom(name) and is_list(args) do
+  defp decompose_spec_head(_as, {name, ctx, args} = _head) when is_atom(name) and is_list(args) do
     # if as != nil and args != [] do
     #   Enum.find(args, false, fn
     #     {^as, _, scope} when is_atom(scope) -> true
     #     _ -> false
     #   end) || raise %MissingAtInArgs{as: as, ast: head}
     # end
-    {name, length(args)}
+    defaults = generate_default_functions(name, ctx, args)
+    {name, length(args), defaults}
   end
   defp decompose_spec_head(_as, head), do: raise %InvalidProtocolSpecification{ast: head}
+
+  defp generate_default_functions(name, ctx, args_so_far \\ [], args, acc \\ [])
+  defp generate_default_functions(_name, _ctx, _args_so_far, [], acc), do: acc
+  defp generate_default_functions(name, ctx, args_so_far, [{:\\, _dctx, [_binding, default_ast]} | args], acc) do
+    args_proc = Enum.filter(args, fn {:\\, _, _} -> false; _ -> true end)
+    def_args = args_so_far ++ args_proc
+    args_call = args_so_far ++ [default_ast] ++ args_proc
+    args_so_far = args_so_far ++ [default_ast]
+    def_head = {name, ctx, def_args}
+    def_ast = {:def, ctx, [def_head, [do: {name, ctx, args_call}]]}
+    default = {name, length(def_args), def_head, def_ast}
+    generate_default_functions(name, ctx, args_so_far, args, [default | acc])
+  end
+  defp generate_default_functions(name, ctx, args_so_far, [arg | args], acc) do
+    args_so_far = args_so_far ++ [arg]
+    generate_default_functions(name, ctx, args_so_far, args, acc)
+  end
 
 
   defp verify_valid_spec(spec) do
