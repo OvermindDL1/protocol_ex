@@ -74,6 +74,32 @@ defmodule Resolver do
   ])
 end
 
+defmodule Mod1 do
+  defmodule Mod11 do
+    defmodule Mod111 do
+      defstruct a: 42
+    end
+  end
+end
+
+defprotocol_ex ModProto do
+  def blah(a)
+end
+
+defimpl_ex Greater, %Mod1.Mod11.Mod111{a: a} when a>=0, for: ModProto do
+  def blah(%Mod1.Mod11.Mod111{a: a}), do: %Mod1.Mod11.Mod111{a: a-1}
+end
+alias Mod1.Mod11
+defimpl_ex Zero, %Mod11.Mod111{a: 0}, for: ModProto do
+  def blah(%Mod11.Mod111{a: a}), do: %Mod11.Mod111{a: a}
+end
+alias Mod11.Mod111
+defimpl_ex Lesser, %Mod111{a: a} when a<0, for: ModProto do
+  def blah(%Mod111{a: a}), do: %Mod111{a: a+1}
+end
+defmodule ResolverMod do
+  ProtocolEx.resolveProtocolEx(ModProto, [Zero, Greater, Lesser])
+end
 # # TODO:  Actually I do have to wrap it up now, will not work until they actually exist in `.ex` files now...
 # # Only wrapping everything up in modules to prevent having to make more `.ex` files
 # defmodule Testering do

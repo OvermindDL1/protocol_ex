@@ -94,6 +94,7 @@ defmodule ProtocolEx do
   Define a protocol behaviour.
   """
   defmacro defprotocolEx(name, opts \\ [], [do: body]) do
+    body = globalize_ast(body, __CALLER__, __MODULE__.ProtoScope)
     parsed_name = get_atom_name(name, __CALLER__)
     desc_name = get_atom_name_with(name, @desc_name) |> get_atom_name(__CALLER__)
     as =
@@ -148,6 +149,8 @@ defmodule ProtocolEx do
     name = get_atom_name(for_name)
     name = __CALLER__.aliases[name] || name
     desc_name = get_desc_name(name)
+    body = globalize_ast(body, __CALLER__, __MODULE__.ImplScope)
+    matcher = globalize_ast(matcher, __CALLER__, __MODULE__.ImplScope)
     quote do
       require unquote(desc_name)
       ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), __ENV__)
@@ -458,6 +461,8 @@ defmodule ProtocolEx do
       :code.purge(name)
     end
     Code.compiler_options(ignore_module_conflict: true)
+    #impl_quoted|> Macro.to_string()|>Code.format_string!()|>IO.puts()
+    #impl_quoted|>IO.inspect()
     Module.create(name, impl_quoted, spec.location)
     Code.compiler_options(ignore_module_conflict: false)
     if(true, do: name.__tests_pex__([])) # TODO: Make this configurable
@@ -472,6 +477,17 @@ defmodule ProtocolEx do
     end
   end
 
+
+  defp globalize_ast(ast, env, scope) do
+    Macro.prewalk(ast, fn
+      {binding, ctx, nil} -> {binding, ctx, scope}
+      {:__aliases__, _ctx, [arg | args]} ->
+        mod = Module.concat([arg])
+        mod = env.aliases[mod] || mod
+        Module.concat([mod | args])
+      ast -> ast
+    end)
+  end
 
 
   defp get_atom_name(name, env \\ %{module: nil})
@@ -825,15 +841,9 @@ defmodule ProtocolEx do
 
   defp get_args_from_head(ast_head)
   defp get_args_from_head({:def, _meta, [{:when, _when_meta, [{_name, _name_meta, args}, _guard]}]}) do
-    # Enum.map(List.wrap(args), fn
-    #   {name, _, scope} = ast when is_atom(name) and is_atom(scope) -> ast
-    #   end)
     args
   end
   defp get_args_from_head({:def, _meta, [{_name, _name_meta, args}]}) do
-    # Enum.map(List.wrap(args), fn
-    #   {name, _, scope} = ast when is_atom(name) and is_atom(scope) -> ast
-    #   end)
     args
   end
 
