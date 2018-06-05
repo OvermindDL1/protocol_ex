@@ -483,10 +483,12 @@ defmodule ProtocolEx do
   defp globalize_ast(ast, env, scope) do
     Macro.prewalk(ast, fn
       {binding, ctx, nil} -> {binding, ctx, scope}
-      {:__aliases__, _ctx, [arg | args]} ->
+      {:__aliases__, _ctx, [arg | args]} = ast ->
         mod = Module.concat([arg])
-        mod = env.aliases[mod] || mod
-        Module.concat([mod | args])
+        case env.aliases[mod] do
+          nil -> ast
+          mod -> Module.concat([mod | args])
+        end
       ast -> ast
     end)
   end

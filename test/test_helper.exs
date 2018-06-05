@@ -84,18 +84,23 @@ end
 
 defprotocol_ex ModProto do
   def blah(a)
+  def bloop(a)
 end
 
 defimpl_ex Greater, %Mod1.Mod11.Mod111{a: a} when a>=0, for: ModProto do
   def blah(%Mod1.Mod11.Mod111{a: a}), do: %Mod1.Mod11.Mod111{a: a - 1}
+  def bloop(v), do: v
 end
 alias Mod1.Mod11
 defimpl_ex Zero, %Mod11.Mod111{a: 0}, for: ModProto do
   def blah(%Mod11.Mod111{a: a}), do: %Mod11.Mod111{a: a}
+  alias Mod11.Mod111
+  def bloop(%Mod111{a: a}), do: %Mod111{a: a}
 end
 alias Mod11.Mod111
 defimpl_ex Lesser, %Mod111{a: a} when a<0, for: ModProto do
   def blah(%Mod111{a: a}), do: %Mod111{a: a + 1}
+  def bloop(v), do: v
 end
 defmodule ResolverMod do
   ProtocolEx.resolveProtocolEx(ModProto, [Zero, Greater, Lesser])
