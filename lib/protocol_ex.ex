@@ -94,7 +94,7 @@ defmodule ProtocolEx do
   Define a protocol behaviour.
   """
   defmacro defprotocolEx(name, opts \\ [], [do: body]) do
-    body = globalize_ast(body, __CALLER__, __MODULE__.ProtoScope)
+    # body = globalize_ast(body, __CALLER__, __MODULE__.ProtoScope)
     parsed_name = get_atom_name(name, __CALLER__)
     desc_name = get_atom_name_with(name, @desc_name) |> get_atom_name(__CALLER__)
     as =
@@ -123,7 +123,7 @@ defmodule ProtocolEx do
         def spec, do: unquote(Macro.escape(spec))
       end
     #desc_body |> Macro.to_string() |> Code.format_string!() |> IO.puts()
-    Module.create(desc_name, desc_body, Macro.Env.location(__CALLER__))
+    Module.create(desc_name, desc_body, __CALLER__) # Macro.Env.location(__CALLER__))
     consolidate(parsed_name, [impls: []]) # A temporary hoister
     if parsed_name == name do
       :ok
@@ -149,7 +149,7 @@ defmodule ProtocolEx do
     name = get_atom_name(for_name)
     name = __CALLER__.aliases[name] || name
     desc_name = get_desc_name(name)
-    body = globalize_ast(body, __CALLER__, __MODULE__.ImplScope)
+    # body = globalize_ast(body, __CALLER__, __MODULE__.ImplScope)
     matcher = globalize_ast(matcher, __CALLER__, __MODULE__.ImplScope)
     quote do
       require unquote(desc_name)
@@ -251,7 +251,7 @@ defmodule ProtocolEx do
     if Code.ensure_loaded?(impl_name) do
       :code.purge(impl_name)
     end
-    Module.create(impl_name, impl_quoted, Macro.Env.location(caller_env))
+    Module.create(impl_name, impl_quoted, caller_env) # Macro.Env.location(caller_env))
     verify_valid_spec_on_module(name, spec, impl_name)
   end
 
