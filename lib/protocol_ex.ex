@@ -126,11 +126,13 @@ defmodule ProtocolEx do
     Module.create(desc_name, desc_body, __CALLER__) # Macro.Env.location(__CALLER__))
     consolidate(parsed_name, [impls: []]) # A temporary hoister
     if parsed_name == name do
-      :ok
+      generate_alias_usage(body, __CALLER__)
     else
-      quote do
-        alias unquote(parsed_name), as: unquote(name)
-      end
+      [
+        quote(do: alias(unquote(parsed_name), as: unquote(name))),
+        quote(do: _ = unquote(name))
+      | generate_alias_usage(body, __CALLER__)
+      ]
     end
   end
 
@@ -151,10 +153,12 @@ defmodule ProtocolEx do
     desc_name = get_desc_name(name)
     # body = globalize_ast(body, __CALLER__, __MODULE__.ImplScope)
     matcher = globalize_ast(matcher, __CALLER__, __MODULE__.ImplScope)
-    quote do
-      require unquote(desc_name)
-      ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), __ENV__)
-    end
+    [ quote do
+        require unquote(desc_name)
+        ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), __ENV__)
+      end
+    | generate_alias_usage(matcher, __CALLER__) ++ generate_alias_usage(body, __CALLER__)
+    ]
   end
 
   defmacro defimpl_ex(impl_name, matcher, opts, bodies) do
@@ -941,7 +945,25 @@ defmodule ProtocolEx do
   defp append_body_to_head({:def, meta, args}, body) do
     {:def, meta, args++[[do: body]]}
   end
+
+
+  defp generate_alias_usage(ast, env) do
+    Macro.prewalk(ast, [], fn
+      {:__aliases__, _ctx, [name | _]} = ast, acc ->
+        if env.aliases[Module.concat([name])] do
+          {ast, [quote(do: _ = unquote(ast)) | acc]}
+        else
+          {ast, acc}
+        end
+      ast, acc ->
+        {ast, acc}
+    end)
+    |> elem(1)
+  end
+
+
 end
+
 
 if Mix.env() === :test do
   # MyDecimal for Numbers
