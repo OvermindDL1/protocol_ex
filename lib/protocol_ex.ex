@@ -96,6 +96,7 @@ defmodule ProtocolEx do
   defmacro defprotocolEx(name, opts \\ [], [do: body]) do
     # body = globalize_ast(body, __CALLER__, __MODULE__.ProtoScope)
     parsed_name = get_atom_name(name, __CALLER__)
+    name = get_atom_name(name)
     desc_name = get_atom_name_with(name, @desc_name) |> get_atom_name(__CALLER__)
     as =
       case opts[:as] do
@@ -129,8 +130,8 @@ defmodule ProtocolEx do
       generate_alias_usage(body, __CALLER__)
     else
       [
-        quote(do: alias(unquote(parsed_name), as: unquote(name))),
-        quote(do: _ = unquote(name))
+        quote(generated: true, do: alias(unquote(parsed_name), as: unquote(name))),
+        quote(generated: true, do: _ = unquote(name))
       | generate_alias_usage(body, __CALLER__)
       ]
     end
@@ -148,14 +149,16 @@ defmodule ProtocolEx do
   Implement a protocol based on a matcher specification
   """
   defmacro defimplEx(impl_name, matcher, [{:for, for_name} | opts], [do: body]) do
-    name = get_atom_name(for_name)
+    name = globalize_ast(for_name, __CALLER__, __MODULE__.Unused)
+    name = get_atom_name(name)
     name = __CALLER__.aliases[name] || name
     desc_name = get_desc_name(name)
+    impl_name = get_atom_name(impl_name)
     # body = globalize_ast(body, __CALLER__, __MODULE__.ImplScope)
     matcher = globalize_ast(matcher, __CALLER__, __MODULE__.ImplScope)
     [ quote do
         require unquote(desc_name)
-        ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), __ENV__)
+        ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), unquote({:__ENV__, [], nil}))
       end
     | generate_alias_usage(matcher, __CALLER__) ++ generate_alias_usage(body, __CALLER__)
     ]

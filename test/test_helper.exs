@@ -107,6 +107,21 @@ defmodule ResolverMod do
 end
 
 
+defprotocolEx Expro.Proto do
+  def foo(p)
+end
+
+alias Expro.Proto
+
+defimplEx Foo, true, for: Proto do
+  def foo(_p), do: true
+end
+
+defmodule ResolverExpro do
+  ProtocolEx.resolveProtocolEx(Proto, [Foo])
+end
+
+
 defprotocol_ex Defaults do
   def succ(a, b \\ 1)
 end
