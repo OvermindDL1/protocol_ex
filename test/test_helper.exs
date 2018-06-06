@@ -118,7 +118,7 @@ defimplEx Foo, true, for: Proto do
 end
 
 defmodule ResolverExpro do
-  ProtocolEx.resolveProtocolEx(Proto, [Foo])
+  ProtocolEx.resolveProtocolEx(Expro.Proto, [Foo])
 end
 
 

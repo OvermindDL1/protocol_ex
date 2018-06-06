@@ -160,8 +160,10 @@ defmodule ProtocolEx do
         require unquote(desc_name)
         ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), unquote({:__ENV__, [], nil}))
       end
-    | generate_alias_usage(matcher, __CALLER__) ++ generate_alias_usage(body, __CALLER__)
-    ]
+    | generate_alias_usage(matcher, __CALLER__)
+    ++ generate_alias_usage(body, __CALLER__)
+    ++ generate_alias_usage(for_name, __CALLER__)
+    ] # |>case do ast -> IO.puts(Code.format_string!(Macro.to_string(ast))); ast end
   end
 
   defmacro defimpl_ex(impl_name, matcher, opts, bodies) do
