@@ -273,50 +273,50 @@ defmodule ProtocolEx do
       path
       |> Path.join("*.beam")
       |> Path.wildcard()
-      |> case do beam_paths ->
+    end)
+    |> case do beam_paths ->
+      beam_paths
+      |> Enum.flat_map(fn path -> # Oh what I'd give for a monadic `do` right about now...  >.>
+        case :beam_lib.chunks(path |> to_charlist(), [:attributes]) do
+          {:ok, {_mod, chunks}} ->
+            case get_in(chunks, [:attributes, @desc_attr]) do
+              [proto] -> [proto]
+              _ -> []
+            end
+          _err -> []
+        end
+      end)
+      |> case do protocols ->
         beam_paths
-        |> Enum.flat_map(fn path -> # Oh what I'd give for a monadic `do` right about now...  >.>
+        |> Enum.flat_map(fn path ->
           case :beam_lib.chunks(path |> to_charlist(), [:attributes]) do
-            {:ok, {_mod, chunks}} ->
-              case get_in(chunks, [:attributes, @desc_attr]) do
-                [proto] -> [proto]
-                _ -> []
+            {:ok, {mod, chunks}} ->
+              attributes = chunks[:attributes]
+              case attributes[:protocol_ex] do
+                nil -> []
+                protos ->
+                  protos
+                  |> Enum.any?(&Enum.member?(protocols, &1))
+                  |> if do
+                    priority = hd(attributes[:priority] || [0])
+                    data = {mod, priority, protos}
+                    [data]
+                  else
+                    []
+                  end
               end
             _err -> []
           end
         end)
-        |> case do protocols ->
-          beam_paths
-          |> Enum.flat_map(fn path ->
-            case :beam_lib.chunks(path |> to_charlist(), [:attributes]) do
-              {:ok, {mod, chunks}} ->
-                attributes = chunks[:attributes]
-                case attributes[:protocol_ex] do
-                  nil -> []
-                  protos ->
-                    protos
-                    |> Enum.any?(&Enum.member?(protocols, &1))
-                    |> if do
-                      priority = hd(attributes[:priority] || [0])
-                      data = {mod, priority, protos}
-                      [data]
-                    else
-                      []
-                    end
-                end
-              _err -> []
-            end
-          end)
-          |> case do impls ->
+        |> case do impls ->
 # IO.inspect {:consolidating_all, protocols}
-            protocols
-            |> Enum.map(fn proto_name ->
-              consolidate(proto_name, [impls: impls, output_beam: opts[:output_beam]])
-            end)
-          end
+          protocols
+          |> Enum.map(fn proto_name ->
+            consolidate(proto_name, [impls: impls, output_beam: opts[:output_beam], verbose: opts[:verbose]])
+          end)
         end
       end
-    end)
+    end
   end
 
   @doc """
@@ -410,7 +410,7 @@ defmodule ProtocolEx do
           glob = Path.join([base_path, "**", beam_filename])
           [path] = Path.wildcard(glob) # TODO:  Add error reporting on this...
           File.write!(path, beam_data)
-          if(opts[:verbose], do: IO.puts("ProtocolEx beam module: #{beam_filename}"))
+          if(opts[:verbose], do: IO.puts("ProtocolEx beam module #{beam_filename} with implementations #{inspect impls}"))
       end
       Code.compiler_options(ignore_module_conflict: false)
       if(true, do: proto_name.__tests_pex__([]))

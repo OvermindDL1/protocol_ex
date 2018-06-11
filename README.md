@@ -35,9 +35,9 @@ The below assumes:
 import ProtocolEx
 ```
 
-### `defprotocolEx/2`
+### `defprotocol_ex/2`
 
-`defprotocolEx/2` is used like `defmodule` in that it takes a module name to become and the body. The body can contain plain function heads like:
+`defprotocol_ex/2` is used like `defmodule` in that it takes a module name to become and the body. The body can contain plain function heads like:
 
 ```elixir
 def something(a)
@@ -56,12 +56,12 @@ Plain heads **must** be implemented in an implementation, not doing so will rais
 
 Full body functions supply the fallback, if an implementation does not supply an implementation of it then it will fall back to the fallback implementation.
 
-Inside a `defprotocolEx/2` you are able to use `deftest` to run some tests at compile time to make certain that the implementations follow necessary rules.
+Inside a `defprotocol_ex/2` you are able to use `deftest` to run some tests at compile time to make certain that the implementations follow necessary rules.
 
 #### Example
 
 ```elixir
-defprotocolEx Blah do
+defprotocol_ex Blah do
   def empty() # Transformed to 1-arg that matches on based on the implementation, but ignored otherwise
   def succ(a)
   def add(a, b)
@@ -76,7 +76,7 @@ end
 In this example each implementation must also define a `prop_generator` that returns a StreamData generator to generate the types of that implementation, such as for lists:  `def prop_generator(), do: StreamData.list_of(StreamData.integer())`
 
 ```elixir
-defprotocolEx Functor do
+defprotocol_ex Functor do
   def map(v, f)
 
   deftest identity do
@@ -108,7 +108,7 @@ end
 You can also specify a name to the matcher so you can use the same name in a specific position in a `def`, like in:
 
 ```elixir
-defprotocolEx Monad, as: monad do
+defprotocol_ex Monad, as: monad do
   def wrap(value, monad)
   def flat_map(monad, fun)
 end
@@ -116,14 +116,14 @@ end
 
 In this example `wrap/2` uses the monad matcher in its last position, where `flat_map/2` uses it in the first.
 
-### `defimplEx/4`
+### `defimpl_ex/4`
 
-`defimplEx/4` takes a unique name for this implementation for the given protocol first, then a normal elixir match expression second, then `[for: ProtocolName]` for a given protocol, and lastly the body.
+`defimpl_ex/4` takes a unique name for this implementation for the given protocol first, then a normal elixir match expression second, then `[for: ProtocolName]` for a given protocol, and lastly the body.
 
 #### Example
 
 ```elixir
-defimplEx Integer, i when is_integer(i), for: Blah do
+defimpl_ex Integer, i when is_integer(i), for: Blah do
   def empty(), do: 0
   defmacro succ(i), do: quote(do: unquote(i)+1) # Macro's get inlined into the protocol itself
   def add(i, b), do: i+b
@@ -132,7 +132,7 @@ defimplEx Integer, i when is_integer(i), for: Blah do
   def a_fallback(i), do: "Integer: #{i}"
 end
 
-defimplEx TaggedTuple.Vwoop, {Vwoop, i} when is_integer(i), for: Blah do
+defimpl_ex TaggedTuple.Vwoop, {Vwoop, i} when is_integer(i), for: Blah do
   def empty(), do: {Vwoop, 0}
   def succ({Vwoop, i}), do: {Vwoop, i+1}
   def add({Vwoop, i}, b), do: {Vwoop, i+b}
@@ -143,7 +143,7 @@ defmodule MyStruct do
   defstruct a: 42
 end
 
-defimplEx MineOlStruct, %MyStruct{}, for: Blah do
+defimpl_ex MineOlStruct, %MyStruct{}, for: Blah do
   def empty(), do: %MyStruct{a: 0}
   def succ(s), do: %{s | a: s.a+1}
   def add(s, b), do: %{s | a: s.a+b}
@@ -151,14 +151,14 @@ defimplEx MineOlStruct, %MyStruct{}, for: Blah do
 end
 ```
 
-### `resolveProtocolEx/2`
+### `resolve_protocol_ex/2`
 
-`resolveProtocolEx/2` allows to dynamic consolidation (or if you do not wish to use the compiler).  It takes the protocol module name first, then a list of the unique names to consolidate.  If there is more than one implementation that can match a given value then they are used in the order of definition here.
+`resolve_protocol_ex/2` allows to dynamic consolidation (or if you do not wish to use the compiler).  It takes the protocol module name first, then a list of the unique names to consolidate.  If there is more than one implementation that can match a given value then they are used in the order of definition here.
 
 #### Example
 
 ```elixir
-ProtocolEx.resolveProtocolEx(Blah, [
+ProtocolEx.resolve_protocol_ex(Blah, [
   Integer,
   TaggedTuple.Vwoop,
   MineOlStruct,
@@ -200,3 +200,8 @@ It can of course be useful to call an implementation directly as well:
 {Vwoop, 0}         = Blah.TaggedTuple.Vwoop.empty()
 %MyStruct{a: 0}    = Blah.MineOlStruct.empty()
 ```
+
+## Debugging
+
+As with the standard Elixir Protocols, running `mix compile` with the `--verbose` flag like `mix compile --verbose` will state what protocol\_ex's it found and with what implementations it found to combine it with.
+

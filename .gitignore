@@ -21,3 +21,5 @@ erl_crash.dump
 
 # Temp files
 .#*
+*.swp
+
