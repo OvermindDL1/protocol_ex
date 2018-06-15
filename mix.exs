@@ -55,7 +55,7 @@ defmodule ProtocolEx.Mixfile do
   defp deps do
     [
       # Optional dependencies
-      {:stream_data, "~> 0.3.0", optional: true, only: [:dev, :test]},
+      {:stream_data, "~> 0.4.2", optional: true, only: [:dev, :test]},
        # Documentation
       {:ex_doc, ">= 0.18.1", only: [:dev]},
       {:ex_doc_makeup, ">= 0.1.0", only: [:dev]},
