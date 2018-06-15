@@ -48,7 +48,7 @@ defmodule ProtocolEx.Mixfile do
     [
       extra_applications: [
         # :logger,
-      ],
+      ] ++ if(Mix.env() in [:test], do: [:stream_data], else: [])
     ]
   end
 
