@@ -61,7 +61,7 @@ defmodule ProtocolEx.Mixfile do
       {:ex_doc_makeup, ">= 0.1.0", only: [:dev]},
       # Testing only
       {:cortex, "~> 0.5.0", only: [:test]},
-      {:benchee, "~> 0.9.0", only: [:test]},
+      {:benchee, "~> 0.13.1", only: [:test]},
       {:numbers, "~> 5.1", only: [:test]},
       {:decimal, "~> 1.3", only: [:test]}
     ]
