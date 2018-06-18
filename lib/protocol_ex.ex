@@ -421,22 +421,20 @@ defmodule ProtocolEx do
 
   @doc """
   Resolve a protocol into a final ready-to-use-module based on implementation names
-
-  If priority_sorted is true then it sorts based on the impl priority, else it uses the defined order
   """
   defmacro resolveProtocolEx(orig_name, impls, priority_sorted \\ false) when is_list(impls) do
+    if(priority_sorted, do: IO.puts("`priority_sorted` is no longer supported, internal sorting is now always used"))
     name = get_atom_name(orig_name)
     name = __CALLER__.aliases[name] || name
     desc_name = get_desc_name(name)
     impls = Enum.map(impls, &get_atom_name/1)
     impls = Enum.map(impls, &get_atom_name_with(name, &1))
     impls = Enum.map(impls, &get_atom_name/1)
-    impls = if(priority_sorted, do: Enum.sort_by(impls, &(&1.module_info()[:attributes][:priority] || 0), &>=/2), else: impls)
-    requireds = Enum.map([desc_name | impls], fn req ->
-      {:require, [], [req]}
-      # quote do
-      #   require unquote(req)
-      # end
+    impls = Enum.map(impls, &{&1, &1.module_info()[:attributes][:priority] || 0, [name]})
+    #impls = if(priority_sorted, do: Enum.sort_by(impls, &(&1.module_info()[:attributes][:priority] || 0), &>=/2), else: impls)
+    requireds = Enum.map([desc_name | impls], fn
+      {req, _, _} -> {:require, [], [req]}
+      req -> {:require, [], [req]}
     end)
     quote do
       __silence_alias_warnings__ = unquote(orig_name)
@@ -453,6 +451,8 @@ defmodule ProtocolEx do
 
   @doc false
   defmacro resolveProtocolEx_do(name, impls) when is_list(impls) do
+    consolidate(name, impls: impls)
+    if false do
     name = get_atom_name(name)
     desc_name = get_desc_name(name)
     spec = desc_name.spec()
@@ -477,6 +477,7 @@ defmodule ProtocolEx do
     Module.create(name, impl_quoted, spec.location)
     Code.compiler_options(ignore_module_conflict: false)
     if(true, do: name.__tests_pex__([])) # TODO: Make this configurable
+    end
     :ok
   end
 
