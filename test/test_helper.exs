@@ -60,10 +60,16 @@ defimplEx TaggedTuple.Vwoop, {Vwoop, i} when is_integer(i), for: Blah do
 end
 
 defimplEx MineOlStruct, %MyStruct{}, for: Blah do
-  def empty(), do: %MyStruct{a: 0}
+  def empty(), do: %MyStruct{a: extra_func1(0)}
   def succ(s), do: %{s | a: s.a+1}
   def add(s, b), do: %{s | a: s.a+b}
   def map(s, f), do: %{s | a: f.(s.a)}
+  def extra_func0(), do: priv_func0()
+  def extra_func1(a), do: priv_func1(a)
+  def extra_func2(a, b), do: priv_func2(a, b)
+  defp priv_func0, do: :undefined
+  defp priv_func1(a), do: a
+  defp priv_func2(a, b), do: a+b
 end
 
 defmodule Resolver do

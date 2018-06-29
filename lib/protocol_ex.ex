@@ -226,7 +226,7 @@ defmodule ProtocolEx do
       |> case do
         old_inlines ->
           Macro.prewalk(body, {%{}, false}, fn
-            ({:def, _, [{fun, _, bindings}, _]} = ast, {acc, inline}) ->
+            ({:def, _, [{fun, _, bindings}, _]} = ast, {acc, inline}) when is_list(bindings) ->
               arity = length(bindings)
               if inline or Map.get(acc, {fun, arity}, false) do
                 acc = Map.update(acc, {fun, arity}, [ast], &[ast | List.wrap(&1)])
@@ -234,7 +234,7 @@ defmodule ProtocolEx do
               else
                 {ast, {acc, false}}
               end
-            ({:def, _, [{:when, _, [{fun, _, bindings}, _]}, _]} = ast, {acc, inline}) ->
+            ({:def, _, [{:when, _, [{fun, _, bindings}, _]}, _]} = ast, {acc, inline}) when is_list(bindings)->
               arity = length(bindings)
               if inline or Map.get(acc, {fun, arity}, false) do
                 acc = Map.update(acc, {fun, arity}, [ast], &[ast | List.wrap(&1)])
