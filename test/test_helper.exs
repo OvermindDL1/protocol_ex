@@ -39,7 +39,7 @@ defprotocol_ex Blah do
   def add(a, b)
   def map(a, f) when is_function(f, 1)
 
-  def a_fallback(a), do: inspect(a)
+  def a_fallback(a), do: nil # inspect(a)
 end
 
 defimpl_ex Integer, i when is_integer(i), for: Blah do

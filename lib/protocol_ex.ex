@@ -383,7 +383,7 @@ defmodule ProtocolEx do
       impl_quoted = {:__block__, [],
         Enum.map(impls, &quote(do: require unquote(&1))) ++
         :lists.reverse(spec.head_asts) ++
-        [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end,
+        [ quote do def __protocol_ex__, do: unquote(Macro.escape(clean_spec(spec))) end,
           quote do def __proto_ex_consolidated__, do: unquote(if(impls === [], do: false, else: true)) end,
           quote do def __proto_ex_impls__, do: unquote(impls) end
         | Enum.flat_map(:lists.reverse(spec.callbacks), &load_abstract_from_impls(spec, proto_name, &1, impls))
@@ -471,7 +471,7 @@ defmodule ProtocolEx do
     impl_quoted = {:__block__, [],
       Enum.map(impls, &quote(do: require unquote(&1))) ++
       :lists.reverse(spec.head_asts) ++
-      [ quote do def __protocolEx__, do: unquote(Macro.escape(clean_spec(spec))) end,
+      [ quote do def __protocol_ex__, do: unquote(Macro.escape(clean_spec(spec))) end,
         quote do def __proto_ex_consolidated__, do: unquote(if(impls === [], do: false, else: true)) end,
         quote do def __proto_ex_impls__, do: unquote(impls) end
       ] ++
@@ -818,7 +818,22 @@ defmodule ProtocolEx do
           end]]}
         doc = quote do @doc unquote("See `#{name}/1`") end
         :lists.reverse([ast_bounce | returning], [doc, ast_fallback])
-      {_name, _arity, _ast_head, ast_fallback}  ->
+      {_name, _arity, ast_head, {:def, meta, def_ast}}  ->
+        {_ast_head, head_args} =
+          Macro.prewalk(ast_head, [], fn
+            {name, _meta, scope} = arg, acc when is_atom(name) and is_atom(scope) ->
+              {arg, [arg | acc]}
+            ast, acc ->
+              {ast, acc}
+          end)
+        head_args =
+          head_args
+          |> Enum.uniq()
+          |> Enum.map(&quote(do: _ = unquote(&1)))
+        [body | def_ast] = :lists.reverse(def_ast)
+        body = Keyword.put(body, :do, quote(do: (unquote_splicing(head_args);unquote(body[:do]))))
+        def_ast = :lists.reverse(def_ast, [body])
+        ast_fallback = {:def, meta, def_ast}
         :lists.reverse(returning, [ast_fallback])
       {:extra, :test, _name, _meta, _checks} -> []
     end

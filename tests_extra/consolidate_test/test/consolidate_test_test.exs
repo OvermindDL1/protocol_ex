@@ -26,7 +26,8 @@ defmodule ConsolidateTestTest do
     assert {:integer, 42}     = Bloop.get_with_fallback(42)
     assert {:fallback, 6.28}  = Bloop.get_with_fallback(6.28)
 
-    assert_raise ProtocolEx.UnimplementedProtocolEx, fn ->
+    #assert_raise ProtocolEx.UnimplementedProtocolEx, fn ->
+    assert_raise FunctionClauseError, fn ->
       Bloop.get(6.28)
     end
   end
