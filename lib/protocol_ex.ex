@@ -3,6 +3,8 @@ defmodule ProtocolEx do
   Matcher protocol control module
   """
 
+  @no_match :"__@@NO_MATCH@@__"
+
   defmodule InvalidProtocolSpecification do
     @moduledoc """
     This is raised when a protocol definition is invalid.
@@ -13,7 +15,7 @@ defmodule ProtocolEx do
     def message(exc), do: "Unhandled specification node:  #{inspect exc.ast}"
   end
 
-  defmodule MissingAtInArgs do
+  defmodule MissingAsInArgs do
     @moduledoc """
     This is raised when an `as` name is specified but is missing from a function argument list.
     """
@@ -40,7 +42,7 @@ defmodule ProtocolEx do
     Somehow a given implementation was consolidated without actually having a required callback specified.
     """
     defexception [proto: nil, name: nil, arity: 0, value: nil]
-    def message(exc), do: "Unimplemented Protocol of `#{exc.proto}` at #{inspect exc.name}/#{inspect exc.arity} of value: #{inspect exc.value}"
+    def message(exc), do: "Unimplemented Protocol of `#{exc.proto}` at #{inspect exc.name}/#{inspect exc.arity} with arguments: #{inspect exc.value}"
   end
 
   defmodule MissingRequiredProtocolDefinition do
@@ -395,7 +397,7 @@ defmodule ProtocolEx do
         :code.purge(proto_name)
       end
       Code.compiler_options(ignore_module_conflict: true)
-      if opts[:print_protocol_ex] do
+      if opts[:print_protocol_ex] || System.get_env("PRINT_PROTOCOL_EX") not in [nil, ""] do
         quote do
           defmodule unquote(proto_name) do
             unquote(impl_quoted)
@@ -794,7 +796,10 @@ defmodule ProtocolEx do
         ast_head = {def, [generated: true] ++ meta, [{name, name_meta, [arg]}]}
         load_abstract_from_impls(spec, pname, {name, 1, ast_head}, [], returning)
       {name, arity, ast_head} ->
-        args = get_args_from_head(ast_head)
+        args = Macro.generate_arguments(length(get_args_from_head(ast_head)), __MODULE__)
+        head_args = Enum.map(args, &{:=, [generated: true], [@no_match, &1]})
+        ast_head = replace_head_args_with(ast_head, head_args)
+        ast_head = remove_guards(ast_head)
         body =
           {:raise, [context: Elixir, import: Kernel],
            [{:%, [],
@@ -950,6 +955,12 @@ defmodule ProtocolEx do
       | rest
       ]}
   end
+
+  defp remove_guards(ast_head)
+  defp remove_guards({:def, meta, [{:when, _when_meta, [head, _guard]} | body]}) do
+    remove_guards({:def, meta, [head | body]})
+  end
+  defp remove_guards(ast), do: ast
 
   defp build_body_call_with_args(module, name, args) do
     quote do

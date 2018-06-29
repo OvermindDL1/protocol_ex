@@ -18,6 +18,10 @@ defmodule ProtocolExTest do
     assert %MyStruct{a: 43} === Blah.add(%MyStruct{a: 42}, 1)
   end
 
+  test "Failure" do
+    assert 42 == Blah.add("42", "16")
+  end
+
   test "Aliasing" do
     alias Mod1.Mod11.Mod111
     assert %Mod111{a: 0} = ModProto.blah(%Mod111{a: 1})
