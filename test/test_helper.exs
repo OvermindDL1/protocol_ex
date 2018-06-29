@@ -77,7 +77,7 @@ defmodule Resolver do
     Integer,
     TaggedTuple.Vwoop,
     MineOlStruct,
-  ], print_protocol_ex: true)
+  ])
 end
 
 defmodule Mod1 do

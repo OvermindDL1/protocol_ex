@@ -157,10 +157,10 @@ defmodule ProtocolEx do
     desc_name = get_desc_name(name)
     impl_name = get_atom_name(impl_name)
     # body = globalize_ast(body, __CALLER__, __MODULE__.ImplScope)
-    matcher = globalize_ast(matcher, __CALLER__, __MODULE__.ImplScope)
+    gmatcher = globalize_ast(matcher, __CALLER__, __MODULE__.ImplScope)
     [ quote do
         require unquote(desc_name)
-        ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(matcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), unquote({:__ENV__, [], nil}))
+        ProtocolEx.defimplEx_do(unquote(Macro.escape(impl_name)), unquote(Macro.escape(gmatcher)), [for: unquote(Macro.escape(name))], [do: unquote(Macro.escape(body))], unquote(opts), unquote({:__ENV__, [], nil}))
       end
     | generate_alias_usage(matcher, __CALLER__)
     ++ generate_alias_usage(body, __CALLER__)

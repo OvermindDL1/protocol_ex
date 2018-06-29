@@ -10,7 +10,7 @@ defimplEx Integer, i when is_integer(i), for: Blah do
   def a_fallback(i), do: "Integer: #{i}"
 end
 
-defmodule MyStruct do
+defmodule SubModule.MyStruct do
   defstruct a: 42
 end
 
@@ -21,8 +21,9 @@ defimplEx TaggedTuple.Vwoop, {Vwoop, i} when is_integer(i), for: Blah do
   def map({Vwoop, i}, f), do: {Vwoop, f.(i)}
 end
 
+alias SubModule.MyStruct
 defimplEx MineOlStruct, %MyStruct{}, for: Blah do
-  def empty(_), do: %MyStruct{a: 0}
+  def empty(_), do: %SubModule.MyStruct{a: 0}
   def succ(s), do: %{s | a: s.a+1}
   def add(s, b), do: %{s | a: s.a+b}
   def map(s, f), do: %{s | a: f.(s.a)}
