@@ -312,7 +312,7 @@ defmodule ProtocolEx do
 # IO.inspect {:consolidating_all, protocols}
           protocols
           |> Enum.map(fn proto_name ->
-            consolidate(proto_name, [impls: impls, output_beam: opts[:output_beam], verbose: opts[:verbose]])
+            consolidate(proto_name, [impls: impls, output_beam: opts[:output_beam], verbose: opts[:verbose], print_protocol_ex: opts[:print_protocol_ex]])
           end)
         end
       end
@@ -395,6 +395,16 @@ defmodule ProtocolEx do
         :code.purge(proto_name)
       end
       Code.compiler_options(ignore_module_conflict: true)
+      if opts[:print_protocol_ex] do
+        quote do
+          defmodule unquote(proto_name) do
+            unquote(impl_quoted)
+          end
+        end
+        |> Macro.to_string()
+        |> Code.format_string!()
+        |> IO.puts()
+      end
       #IO.inspect({proto_name, impl_quoted, spec.location}, label: :CONSOLIDATED)
       #impl_quoted |> Macro.to_string() |> Code.format_string!() |> IO.puts()
       {:module, beam_name, beam_data, _exports} = Module.create(proto_name, impl_quoted, spec.location)

@@ -205,3 +205,5 @@ It can of course be useful to call an implementation directly as well:
 
 As with the standard Elixir Protocols, running `mix compile` with the `--verbose` flag like `mix compile --verbose` will state what protocol\_ex's it found and with what implementations it found to combine it with.
 
+You can also use the `--print-protocol-ex` flag to print out the resultant compiled protocol source itself.  Do note that this source file itself may not be compileable and/or is very unlikely to work as Elixirs AST is not homioiconic and thus it loses specific contextual information.
+

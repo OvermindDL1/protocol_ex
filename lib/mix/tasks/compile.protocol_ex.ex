@@ -1,11 +1,12 @@
 defmodule Mix.Tasks.Compile.ProtocolEx do
   use Mix.Task
 
-  @spec run(OptionParser.argv) :: :ok
+  @spec run(OptionParser.argv()) :: :ok
   def run(args) do
-    #config = Mix.Project.config
+    # config = Mix.Project.config
     # Mix.Task.run "compile", args
-    {opts, _, _} = OptionParser.parse(args, switches: [verbose: :boolean])
+    {opts, _, _} =
+      OptionParser.parse(args, switches: [verbose: :boolean, print_protocol_ex: :boolean])
 
     verbose = opts[:verbose]
 
@@ -19,7 +20,7 @@ defmodule Mix.Tasks.Compile.ProtocolEx do
   Cleans up consolidated protocols.
   """
   def clean do
-    config = Mix.Project.config
+    config = Mix.Project.config()
     File.rm_rf(Mix.Project.consolidation_path(config))
     :ok
   end
