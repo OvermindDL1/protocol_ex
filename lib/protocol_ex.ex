@@ -125,7 +125,7 @@ defmodule ProtocolEx do
         @protocol_ex_desc unquote(parsed_name)
         def spec, do: unquote(Macro.escape(spec))
       end
-    #desc_body |> Macro.to_string() |> Code.format_string!() |> IO.puts()
+    # desc_body |> Macro.to_string() |> Code.format_string!() |> IO.puts()
     Module.create(desc_name, desc_body, __CALLER__) # Macro.Env.location(__CALLER__))
     consolidate(parsed_name, [impls: []]) # A temporary hoister
     if parsed_name == name do
@@ -185,19 +185,19 @@ defmodule ProtocolEx do
     test_asts = gen_impl_test_asts(spec)
 
     impl_quoted = {:__block__, [],
-      [ quote do
+      [ if spec.location[:file] in [nil, "", ''] do
+          :no_file_resource
+        else
+          quote do
+            # @external_resource unquote(spec.location[:file])
+            require unquote(desc_name)
+          end
+        end,
+        quote do
           def __matcher__, do: [unquote(Macro.escape(matcher))]
-        end,
-        quote do
           def __spec__, do: unquote(desc_name).spec()
-        end,
-        quote do
           Module.register_attribute(__MODULE__, :protocol_ex, persist: true)
-        end,
-        quote do
           @protocol_ex unquote(name)
-        end,
-        quote do
           Module.register_attribute(__MODULE__, :priority, persist: true)
         end
       ] ++
@@ -314,7 +314,7 @@ defmodule ProtocolEx do
 # IO.inspect {:consolidating_all, protocols}
           protocols
           |> Enum.map(fn proto_name ->
-            consolidate(proto_name, [impls: impls, output_beam: opts[:output_beam], verbose: opts[:verbose], print_protocol_ex: opts[:print_protocol_ex]])
+            consolidate(proto_name, [impls: impls, output_beam: opts[:output_beam], verbose: opts[:verbose], print_protocol_ex: opts[:print_protocol_ex], protocol_tests: opts[:protocol_tests]])
           end)
         end
       end
@@ -425,7 +425,7 @@ defmodule ProtocolEx do
           if(opts[:verbose], do: IO.puts("ProtocolEx beam module #{beam_filename} with implementations #{inspect impls}"))
       end
       Code.compiler_options(ignore_module_conflict: false)
-      if(true, do: proto_name.__tests_pex__([]))
+      if(opts[:protocol_tests], do: proto_name.__tests_pex__(opts[:protocol_tests]))
 # IO.inspect {:consolidated, proto_name}
       proto_name
     end

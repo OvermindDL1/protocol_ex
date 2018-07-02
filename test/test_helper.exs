@@ -89,11 +89,14 @@ defmodule Mod1 do
 end
 
 defprotocol_ex ModProto do
+  @moduledoc "Boop"
+  @doc "Blah docs"
   def blah(a)
   def bloop(a)
 end
 
 defimpl_ex Greater, %Mod1.Mod11.Mod111{a: a} when a>=0, for: ModProto do
+  @doc "and here!"
   def blah(%Mod1.Mod11.Mod111{a: a}), do: %Mod1.Mod11.Mod111{a: a - 1}
   def bloop(v), do: v
 end

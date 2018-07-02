@@ -23,6 +23,7 @@ defmodule ConsolidateTest.Mixfile do
   defp deps do
     [
       {:protocol_ex, path: "../.."},
+      {:stream_data, "~> 0.4.2"}
     ]
   end
 end

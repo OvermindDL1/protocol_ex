@@ -103,6 +103,8 @@ defprotocol_ex Functor do
 end
 ```
 
+You can cancel running tests on compile by passing `--no-protocol-tests` to the `mix compile` command.
+
 ##### Named position example
 
 You can also specify a name to the matcher so you can use the same name in a specific position in a `def`, like in:
