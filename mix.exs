@@ -57,7 +57,7 @@ defmodule ProtocolEx.Mixfile do
       # Optional dependencies
       {:stream_data, "~> 0.4.2", optional: true, only: [:dev, :test]},
        # Documentation
-      {:ex_doc, ">= 0.19.0", only: [:dev]},
+      {:ex_doc, ">= 0.19.0-rc", only: [:dev]},
       #{:ex_doc_makeup, ">= 0.1.0", only: [:dev]},
       # Testing only
       {:cortex, "~> 0.5.0", only: [:test]},
