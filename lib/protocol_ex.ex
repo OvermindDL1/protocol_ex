@@ -3,7 +3,7 @@ defmodule ProtocolEx do
   Matcher protocol control module
   """
 
-  @no_match :"__@@NO_MATCH@@__"
+  @no_match :__@@NO_MATCH@@__
 
   defmodule InvalidProtocolSpecification do
     @moduledoc """
