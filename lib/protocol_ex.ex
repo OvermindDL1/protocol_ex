@@ -545,11 +545,11 @@ defmodule ProtocolEx do
     {name, args_length, defaults} = decompose_spec_head(as, head)
     elem = Macro.prewalk(elem, fn {:\\, _, [b, _]} -> b; a -> a end)
     callbacks = [{name, args_length, elem}] ++ defaults ++ returned.callbacks
-    doc = returned.cache[:doc]
+    doc = List.wrap(returned.cache[:doc])
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, {name, args_length}, doc)),
-      cache: Map.put(returned.cache, :doc, nil)
+      docs: if(doc === [], do: returned.docs, else: Map.put(returned.docs, {name, args_length}, doc)),
+      cache: Map.put(returned.cache, :doc, [])
     }
   end
   defp decompose_spec_element(_env, as, returned, {:def, meta, [head, body]}) do
@@ -558,20 +558,20 @@ defmodule ProtocolEx do
     elem = {:def, meta, [head, body]}
     head = {:def, meta, [head]}
     callbacks = [{name, args_length, head, elem}] ++ defaults ++ returned.callbacks
-    doc = returned.cache[:doc]
+    doc = List.wrap(returned.cache[:doc])
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, {name, args_length}, doc)),
-      cache: Map.put(returned.cache, :doc, nil)
+      docs: if(doc === [], do: returned.docs, else: Map.put(returned.docs, {name, args_length}, doc)),
+      cache: Map.put(returned.cache, :doc, [])
     }
   end
   defp decompose_spec_element(_env, _as, returned, {:deftest, meta, [{name, _, scope}, checks]}) when is_atom(scope) do
     callbacks = [{:extra, :test, name, meta, checks} | returned.callbacks]
-    doc = returned.cache[:doc]
+    doc = List.wrap(returned.cache[:doc])
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, name, doc)),
-      cache: Map.put(returned.cache, :doc, nil)
+      docs: if(doc === [], do: returned.docs, else: Map.put(returned.docs, name, doc)),
+      cache: Map.put(returned.cache, :doc, [])
     }
   end
   defp decompose_spec_element(_env, _as, returned, {pt, _meta, _body} = ast) when pt in [
