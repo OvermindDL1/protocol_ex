@@ -21,7 +21,14 @@ defprotocolEx Blah do
   end
 end
 
-defprotocolEx Bloop do
-  def get(thing)
-  def get_with_fallback(thing), do: {:fallback, thing}
+defmodule Bloop do
+  defprotocolEx Bloop do
+    def get(thing)
+    def get_with_fallback(thing), do: {:fallback, thing}
+  end
+end
+
+defmodule Bloop.Bloop do
+  def blah do
+  end
 end

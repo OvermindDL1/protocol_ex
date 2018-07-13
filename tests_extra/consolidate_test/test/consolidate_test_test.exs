@@ -24,6 +24,7 @@ defmodule ConsolidateTestTest do
     assert {Vwoop, 43}        = Blah.map({Vwoop, 42}, &(&1+1))
     assert %MyStruct{a: 43}   = Blah.map(%MyStruct{a: 42}, &(&1+1))
 
+    alias Bloop.Bloop
     assert {:integer, 42}     = Bloop.get(42)
     assert {:integer, 42}     = Bloop.get_with_fallback(42)
     assert {:fallback, 6.28}  = Bloop.get_with_fallback(6.28)

@@ -29,7 +29,7 @@ defimplEx MineOlStruct, %MyStruct{}, for: Blah do
   def map(s, f), do: %{s | a: f.(s.a)}
 end
 
-defimplEx Integer, i when is_integer(i), for: Bloop do
+defimplEx Integer, i when is_integer(i), for: Bloop.Bloop do
   def get(i), do: {:integer, i}
   def get_with_fallback(i), do: {:integer, i}
 end
