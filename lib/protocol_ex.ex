@@ -381,8 +381,8 @@ defmodule ProtocolEx do
       end)
 
       impl_quoted = {:__block__, [],
-        [ if(spec.docs[:moduledoc], do: spec.docs[:moduledoc], else: quote(do: @moduledoc "<Undocumented>"))
-        | Enum.map(impls, &quote(do: require unquote(&1)))] ++
+        if(spec.docs[:moduledoc], do: spec.docs[:moduledoc], else: [quote(do: @moduledoc "<Undocumented>")]) ++
+        Enum.map(impls, &quote(do: require unquote(&1))) ++
         :lists.reverse(spec.head_asts) ++
         [ quote do def __protocol_ex__, do: unquote(Macro.escape(clean_spec(spec))) end,
           quote do def __proto_ex_consolidated__, do: unquote(if(impls === [], do: false, else: true)) end,
@@ -548,9 +548,9 @@ defmodule ProtocolEx do
     doc = returned.cache[:doc]
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, {name, args_length}, doc)),
+      docs: if(doc === nil, do: returned.docs, else: Map.update(returned.docs, {name, args_length}, [doc], &[doc | &1])),
       cache: Map.put(returned.cache, :doc, nil)
-    }
+    }|>IO.inspect(label: :Blah)
   end
   defp decompose_spec_element(_env, as, returned, {:def, meta, [head, body]}) do
     {name, args_length, defaults} = decompose_spec_head(as, head)
@@ -561,7 +561,7 @@ defmodule ProtocolEx do
     doc = returned.cache[:doc]
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, {name, args_length}, doc)),
+      docs: if(doc === nil, do: returned.docs, else: Map.update(returned.docs, {name, args_length}, [doc], &[doc | &1])),
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
@@ -570,7 +570,7 @@ defmodule ProtocolEx do
     doc = returned.cache[:doc]
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, name, doc)),
+      docs: if(doc === nil, do: returned.docs, else: Map.update(returned.docs, name, [doc], &[doc | &1])),
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
@@ -585,7 +585,7 @@ defmodule ProtocolEx do
     %{returned | cache: Map.put(returned.cache, :doc, doc_ast)}
   end
   defp decompose_spec_element(_env, _as, returned, {:@, _meta, [{:moduledoc, _mdoc_meta, _mdoc_args}]} = mdoc_ast) do
-    %{returned | docs: Map.put(returned.docs, :moduledoc, mdoc_ast)}
+    %{returned | docs: Map.update(returned.docs, :moduledoc, [mdoc_ast], &[mdoc_ast | &1])}
   end
   defp decompose_spec_element(env, _as, returned, {:@, _meta, [{:extends, _doc_meta, extending}]}) do
     extending = Enum.map(extending, fn
@@ -778,10 +778,10 @@ defmodule ProtocolEx do
       end
     doc =
       case spec.docs[doc_key] do
-        nil -> quote do @doc "<Undocumented>" end
+        nil -> [quote do @doc "<Undocumented>" end]
         ast -> ast
       end
-    load_abstract_from_impls(spec, pname, abstract, impls, [doc])
+    load_abstract_from_impls(spec, pname, abstract, impls, doc)
   end
   defp load_abstract_from_impls(spec, pname, abstract, [], returning) do
     case abstract do

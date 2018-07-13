@@ -11,16 +11,16 @@ defmodule ProtocolEx.Mixfile do
       docs: [
         extras: ["README.md"],
         main: "readme",
-        markdown_processor: ExDocMakeup,
-        markdown_processor_options: [
-          lexer_options: %{
-            "elixir" => [
-              extra_declarations: [
-                "defimplEx", "defimpl_ex",
-                "defprotocolEx", "defprotocol_ex"],
-              extra_def_like: ["deftest"]]
-          }
-        ]
+        #markdown_processor: ExDocMakeup,
+        #markdown_processor_options: [
+        #  lexer_options: %{
+        #    "elixir" => [
+        #      extra_declarations: [
+        #        "defimplEx", "defimpl_ex",
+        #        "defprotocolEx", "defprotocol_ex"],
+        #      extra_def_like: ["deftest"]]
+        #  }
+        #]
       ],
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
@@ -57,8 +57,8 @@ defmodule ProtocolEx.Mixfile do
       # Optional dependencies
       {:stream_data, "~> 0.4.2", optional: true, only: [:dev, :test]},
        # Documentation
-      {:ex_doc, ">= 0.18.1", only: [:dev]},
-      {:ex_doc_makeup, ">= 0.1.0", only: [:dev]},
+      {:ex_doc, ">= 0.19.0", only: [:dev]},
+      #{:ex_doc_makeup, ">= 0.1.0", only: [:dev]},
       # Testing only
       {:cortex, "~> 0.5.0", only: [:test]},
       {:benchee, "~> 0.13.1", only: [:test]},

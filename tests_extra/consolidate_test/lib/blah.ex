@@ -4,6 +4,7 @@ defprotocolEx Blah do
   @moduledoc "Test moduledoc"
 
   @doc "Test empty doc"
+  #@doc since: "1.0.0"
   def empty(a)
   def succ(a)
   def add(a, b)
