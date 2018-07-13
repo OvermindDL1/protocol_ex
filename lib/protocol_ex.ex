@@ -548,9 +548,9 @@ defmodule ProtocolEx do
     doc = returned.cache[:doc]
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.update(returned.docs, {name, args_length}, [doc], &[doc | &1])),
+      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, {name, args_length}, doc)),
       cache: Map.put(returned.cache, :doc, nil)
-    }|>IO.inspect(label: :Blah)
+    }
   end
   defp decompose_spec_element(_env, as, returned, {:def, meta, [head, body]}) do
     {name, args_length, defaults} = decompose_spec_head(as, head)
@@ -561,7 +561,7 @@ defmodule ProtocolEx do
     doc = returned.cache[:doc]
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.update(returned.docs, {name, args_length}, [doc], &[doc | &1])),
+      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, {name, args_length}, doc)),
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
@@ -570,7 +570,7 @@ defmodule ProtocolEx do
     doc = returned.cache[:doc]
     %{returned |
       callbacks: callbacks,
-      docs: if(doc === nil, do: returned.docs, else: Map.update(returned.docs, name, [doc], &[doc | &1])),
+      docs: if(doc === nil, do: returned.docs, else: Map.put(returned.docs, name, doc)),
       cache: Map.put(returned.cache, :doc, nil)
     }
   end
@@ -582,7 +582,7 @@ defmodule ProtocolEx do
     %{returned | head_asts: [ast | returned.head_asts]}
   end
   defp decompose_spec_element(_env, _as, returned, {:@, _meta, [{:doc, _doc_meta, _doc_args}]} = doc_ast) do
-    %{returned | cache: Map.put(returned.cache, :doc, doc_ast)}
+    %{returned | cache: Map.update(returned.cache, :doc, [doc_ast], &[doc_ast | &1])}
   end
   defp decompose_spec_element(_env, _as, returned, {:@, _meta, [{:moduledoc, _mdoc_meta, _mdoc_args}]} = mdoc_ast) do
     %{returned | docs: Map.update(returned.docs, :moduledoc, [mdoc_ast], &[mdoc_ast | &1])}
