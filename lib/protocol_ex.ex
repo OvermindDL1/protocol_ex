@@ -381,7 +381,8 @@ defmodule ProtocolEx do
       end)
 
       impl_quoted = {:__block__, [],
-        Enum.map(impls, &quote(do: require unquote(&1))) ++
+        [ if(spec.docs[:moduledoc], do: spec.docs[:moduledoc], else: quote(do: @moduledoc "<Undocumented>"))
+        | Enum.map(impls, &quote(do: require unquote(&1)))] ++
         :lists.reverse(spec.head_asts) ++
         [ quote do def __protocol_ex__, do: unquote(Macro.escape(clean_spec(spec))) end,
           quote do def __proto_ex_consolidated__, do: unquote(if(impls === [], do: false, else: true)) end,
@@ -580,8 +581,11 @@ defmodule ProtocolEx do
   ] do
     %{returned | head_asts: [ast | returned.head_asts]}
   end
-  defp decompose_spec_element(_env, _as, returned, {:@, _meta, [{:doc, _doc_meta, [_doc]}]} = doc_ast) do
+  defp decompose_spec_element(_env, _as, returned, {:@, _meta, [{:doc, _doc_meta, _doc_args}]} = doc_ast) do
     %{returned | cache: Map.put(returned.cache, :doc, doc_ast)}
+  end
+  defp decompose_spec_element(_env, _as, returned, {:@, _meta, [{:moduledoc, _mdoc_meta, _mdoc_args}]} = mdoc_ast) do
+    %{returned | docs: Map.put(returned.docs, :moduledoc, mdoc_ast)}
   end
   defp decompose_spec_element(env, _as, returned, {:@, _meta, [{:extends, _doc_meta, extending}]}) do
     extending = Enum.map(extending, fn

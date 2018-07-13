@@ -1,6 +1,9 @@
 import ProtocolEx
 
 defprotocolEx Blah do
+  @moduledoc "Test moduledoc"
+
+  @doc "Test empty doc"
   def empty(a)
   def succ(a)
   def add(a, b)
@@ -28,7 +31,7 @@ defmodule Bloop do
   end
 end
 
-defmodule Bloop.Bloop do
-  def blah do
-  end
-end
+#defmodule Bloop.Bloop do
+#  def blah do
+#  end
+#end

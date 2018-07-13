@@ -89,9 +89,10 @@ defmodule Mod1 do
 end
 
 defprotocol_ex ModProto do
-  @moduledoc "Boop"
-  @doc "Blah docs"
+  @moduledoc "Test moduledoc"
+  @doc "Test blah docs"
   def blah(a)
+  @doc "Test bloop docs"
   def bloop(a)
 end
 
