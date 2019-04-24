@@ -2,7 +2,7 @@
   "benchee": {:hex, :benchee, "0.14.0", "f771f587c48b4824b497e2a3e374f75e93ef01fc329873b089a3f5dd961b80b8", [:mix], [{:deep_merge, "~> 0.1", [hex: :deep_merge, repo: "hexpm", optional: false]}], "hexpm"},
   "coerce": {:hex, :coerce, "1.0.1", "211c27386315dc2894ac11bc1f413a0e38505d808153367bd5c6e75a4003d096", [:mix], []},
   "cortex": {:hex, :cortex, "0.5.0", "7b12ddcfa9fd61521dd3b841ef8a4758ccab895d6a5d4ed181a5a8ad4b4592a4", [:mix], [{:file_system, "~> 0.2", [hex: :file_system, repo: "hexpm", optional: false]}], "hexpm"},
-  "decimal": {:hex, :decimal, "1.3.1", "157b3cedb2bfcb5359372a7766dd7a41091ad34578296e951f58a946fcab49c6", [:mix], []},
+  "decimal": {:hex, :decimal, "1.7.0", "30d6b52c88541f9a66637359ddf85016df9eb266170d53105f02e4a67e00c5aa", [:mix], [], "hexpm"},
   "deep_merge": {:hex, :deep_merge, "0.2.0", "c1050fa2edf4848b9f556fba1b75afc66608a4219659e3311d9c9427b5b680b3", [:mix], [], "hexpm"},
   "earmark": {:hex, :earmark, "1.3.1", "73812f447f7a42358d3ba79283cfa3075a7580a3a2ed457616d6517ac3738cb9", [:mix], [], "hexpm"},
   "ex_const": {:hex, :ex_const, "0.1.0", "7b04d0b65f00cfb8afc0b778bd58dec4804612a54f57122524ee097e9f2c5443", [:mix], []},
@@ -16,6 +16,6 @@
   "makeup": {:hex, :makeup, "0.8.0", "9cf32aea71c7fe0a4b2e9246c2c4978f9070257e5c9ce6d4a28ec450a839b55f", [:mix], [{:nimble_parsec, "~> 0.5.0", [hex: :nimble_parsec, repo: "hexpm", optional: false]}], "hexpm"},
   "makeup_elixir": {:hex, :makeup_elixir, "0.13.0", "be7a477997dcac2e48a9d695ec730b2d22418292675c75aa2d34ba0909dcdeda", [:mix], [{:makeup, "~> 0.8", [hex: :makeup, repo: "hexpm", optional: false]}], "hexpm"},
   "nimble_parsec": {:hex, :nimble_parsec, "0.5.0", "90e2eca3d0266e5c53f8fbe0079694740b9c91b6747f2b7e3c5d21966bba8300", [:mix], [], "hexpm"},
-  "numbers": {:hex, :numbers, "5.1.0", "afa96e166c5da52b4ff7beaee0716a398cf3e4d10769c795f016de2163bbf7ba", [:mix], [{:coerce, "~> 1.0", [hex: :coerce, optional: false]}, {:decimal, "~> 1.3.0", [hex: :decimal, optional: true]}]},
+  "numbers": {:hex, :numbers, "5.1.1", "1277dbee5dc73b0e1608bd6d318bd8338cbcba5b68cade65f24e4bb402676b5c", [:mix], [{:coerce, "~> 1.0", [hex: :coerce, repo: "hexpm", optional: false]}, {:decimal, "~> 1.5", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm"},
   "stream_data": {:hex, :stream_data, "0.4.2", "fa86b78c88ec4eaa482c0891350fcc23f19a79059a687760ddcf8680aac2799b", [:mix], [], "hexpm"},
 }
