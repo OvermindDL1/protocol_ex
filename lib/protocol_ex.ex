@@ -121,6 +121,8 @@ defmodule ProtocolEx do
     spec = verify_valid_spec(spec)
     desc_body =
       quote do
+        @moduledoc false
+
         Module.register_attribute(__MODULE__, unquote(@desc_attr), persist: true)
         @protocol_ex_desc unquote(parsed_name)
         def spec, do: unquote(Macro.escape(spec))
