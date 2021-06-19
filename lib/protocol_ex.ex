@@ -423,7 +423,12 @@ defmodule ProtocolEx do
         base_path ->
           beam_filename = "#{beam_name}.beam"
           glob = Path.join([base_path, "**", beam_filename])
-          [path] = Path.wildcard(glob) # TODO:  Add error reporting on this...
+          path =
+            case Path.wildcard(glob) do
+              [] -> raise "ProtocolEx consolidation failed: could not find anything for #{glob}"
+              [path] -> path
+              [path | _] -> path
+            end
           File.write!(path, beam_data)
           if(opts[:verbose], do: IO.puts("ProtocolEx beam module #{beam_filename} with implementations #{inspect impls}"))
       end
