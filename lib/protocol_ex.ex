@@ -422,19 +422,22 @@ defmodule ProtocolEx do
         nil -> if(opts[:verbose], do: IO.puts("ProtocolEx inline module: #{beam_name}"))
         base_path ->
           beam_filename = "#{beam_name}.beam"
-          glob = Path.join([base_path, "**", beam_filename])
+          glob = Path.join([base_path, "lib", "**", beam_filename])
           path =
-            case Path.wildcard(glob) do
-              [] -> raise "ProtocolEx consolidation failed: could not find anything for #{glob}"
+            glob
+            |> Path.wildcard()
+            |> Enum.sort()
+            |> case do
+              [] -> raise "ProtocolEx consolidation failed: could not find anything for `#{glob}`"
               [path] -> path
-              [path | _] -> path
+              [_|_] = paths -> raise "ProtocolEx consolidation failed: found multiple beam files for `#{glob}` of: #{inspect paths}"
             end
           File.write!(path, beam_data)
           if(opts[:verbose], do: IO.puts("ProtocolEx beam module #{beam_filename} with implementations #{inspect impls}"))
       end
       Code.compiler_options(ignore_module_conflict: false)
       if(opts[:protocol_tests], do: proto_name.__tests_pex__(opts[:protocol_tests]))
-# IO.inspect {:consolidated, proto_name}
+      if(false && opts[:verbose], do: IO.puts("ProtocolEx Consolidated: #{proto_name}"))
       proto_name
     end
   end
