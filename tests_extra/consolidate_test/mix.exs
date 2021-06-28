@@ -23,7 +23,8 @@ defmodule ConsolidateTest.Mixfile do
   defp deps do
     [
       {:protocol_ex, path: "../.."},
-      {:stream_data, "~> 0.4.2"}
+      {:stream_data, "~> 0.4.2"},
+      {:dialyxir, "~> 1.0.0-rc.3", only: [:dev], runtime: false},
     ]
   end
 end
