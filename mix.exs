@@ -4,8 +4,8 @@ defmodule ProtocolEx.Mixfile do
   def project do
     [
       app: :protocol_ex,
-      version: "0.4.4",
-      elixir: "~> 1.4",
+      version: "0.5.0",
+      elixir: "~> 1.15",
       description: description(),
       package: package(),
       docs: [

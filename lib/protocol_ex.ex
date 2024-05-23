@@ -187,7 +187,7 @@ defmodule ProtocolEx do
     test_asts = gen_impl_test_asts(spec)
 
     impl_quoted = {:__block__, [],
-      [ if spec.location[:file] in [nil, "", ''] do
+      [ if spec.location[:file] in [nil, "", ~C""] do
           :no_file_resource
         else
           quote do
