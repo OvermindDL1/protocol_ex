@@ -1,14 +1,14 @@
-defmodule ConsolidateTest.Mixfile do
+defmodule Lib1.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :consolidate_test,
+      app: :lib1,
       version: "0.1.0",
       elixir: "~> 1.15",
-      start_permanent: Mix.env == :prod,
+      start_permanent: Mix.env() == :prod,
       compilers: Mix.compilers ++ [:protocol_ex],
-      deps: deps(),
+      deps: deps()
     ]
   end
 
@@ -22,9 +22,9 @@ defmodule ConsolidateTest.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:protocol_ex, path: "../.."},
-      {:stream_data, "~> 0.4.2"},
-      {:dialyxir, "~> 1.0.0-rc.3", only: [:dev], runtime: false},
+      # {:dep_from_hexpm, "~> 0.3.0"},
+      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:protocol_ex, path: "../../../.."},
     ]
   end
 end
