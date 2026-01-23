@@ -7,6 +7,7 @@ defmodule UmbrellaTest.MixProject do
       version: "0.1.0",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
+      compilers: Mix.compilers ++ [:protocol_ex],
       deps: deps()
     ]
   end
@@ -17,6 +18,8 @@ defmodule UmbrellaTest.MixProject do
   #
   # Run "mix help deps" for examples and options.
   defp deps do
-    []
+    [
+      {:protocol_ex, path: "../.."},
+    ]
   end
 end

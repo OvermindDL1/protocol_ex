@@ -3,7 +3,7 @@ defmodule ProtocolEx do
   Matcher protocol control module
   """
 
-  @no_match :__@@NO_MATCH@@__
+  # @no_match :__@@NO_MATCH@@__
 
   defmodule InvalidProtocolSpecification do
     @moduledoc """
@@ -128,7 +128,11 @@ defmodule ProtocolEx do
         def spec, do: unquote(Macro.escape(spec))
       end
     # desc_body |> Macro.to_string() |> Code.format_string!() |> IO.puts()
-    Module.create(desc_name, desc_body, __CALLER__) # Macro.Env.location(__CALLER__))
+    if Code.ensure_loaded?(desc_name) do
+      :code.purge(desc_name)
+    end
+    {:module, ^desc_name, beam_data, _} = Module.create(desc_name, desc_body, __CALLER__) # Macro.Env.location(__CALLER__))
+    :code.load_binary(desc_name, ~c"", beam_data)
     consolidate(parsed_name, [impls: []]) # A temporary hoister
     if parsed_name == name do
       generate_alias_usage(body, __CALLER__)
@@ -260,11 +264,12 @@ defmodule ProtocolEx do
           end
       end)
     }
-    # impl_quoted |> Macro.to_string() |> IO.puts
+    # impl_quoted |> Macro.to_string() |> Code.format_string!() |> IO.puts
     if Code.ensure_loaded?(impl_name) do
       :code.purge(impl_name)
     end
-    Module.create(impl_name, impl_quoted, caller_env) # Macro.Env.location(caller_env))
+    {:module, ^impl_name, beam_data, _} = Module.create(impl_name, impl_quoted, caller_env) # Macro.Env.location(caller_env))
+    :code.load_binary(impl_name, ~c"", beam_data)
     verify_valid_spec_on_module(name, spec, impl_name)
   end
 
@@ -410,18 +415,22 @@ defmodule ProtocolEx do
         |> Code.format_string!()
         |> IO.puts()
       end
-      #IO.inspect({proto_name, impl_quoted, spec.location}, label: :CONSOLIDATED)
-      #impl_quoted |> Macro.to_string() |> Code.format_string!() |> IO.puts()
-      {:module, beam_name, beam_data, _exports} = Module.create(proto_name, impl_quoted, spec.location)
+      # IO.inspect({proto_name, impl_quoted, spec.location}, label: :CONSOLIDATED)
+      # impl_quoted |> Macro.to_string() |> Code.format_string!() |> IO.puts()
+      if Code.ensure_loaded?(proto_name) do
+        :code.purge(proto_name)
+      end
+      {:module, ^proto_name, beam_data, _exports} = Module.create(proto_name, impl_quoted, spec.location)
+      :code.load_binary(proto_name, ~c"", beam_data)
       case opts[:output_beam] do
         base_path when is_binary(base_path) -> base_path
         true -> apply(Mix.Project, :build_path, [])
         _ -> nil
       end
       |> case do
-        nil -> if(opts[:verbose], do: IO.puts("ProtocolEx inline module: #{beam_name}"))
+        nil -> if(opts[:verbose], do: IO.puts("ProtocolEx inline module: #{proto_name}"))
         base_path ->
-          beam_filename = "#{beam_name}.beam"
+          beam_filename = "#{proto_name}.beam"
           glob = Path.join([base_path, "lib", "**", beam_filename])
           path =
             glob
@@ -453,7 +462,7 @@ defmodule ProtocolEx do
     impls = Enum.map(impls, &get_atom_name/1)
     impls = Enum.map(impls, &get_atom_name_with(name, &1))
     impls = Enum.map(impls, &get_atom_name/1)
-    impls = Enum.map(impls, &{&1, &1.module_info()[:attributes][:priority] || 0, [name]})
+    impls = Enum.map(impls, &{&1, &1.module_info()[:attributes][:priority] || [0], [name]})
     #impls = if(priority_sorted, do: Enum.sort_by(impls, &(&1.module_info()[:attributes][:priority] || 0), &>=/2), else: impls)
     requireds = Enum.map([desc_name | impls], fn
       {req, _, _} -> {:require, [], [req]}
@@ -494,11 +503,15 @@ defmodule ProtocolEx do
     if Code.ensure_loaded?(name) do
       :code.purge(name)
     end
-    Code.compiler_options(ignore_module_conflict: true)
+    # Code.compiler_options(ignore_module_conflict: true)
     #impl_quoted|> Macro.to_string()|>Code.format_string!()|>IO.puts()
     #impl_quoted|>IO.inspect()
-    Module.create(name, impl_quoted, spec.location)
-    Code.compiler_options(ignore_module_conflict: false)
+    if Code.ensure_loaded?(name) do
+      :code.purge(name)
+    end
+    {:module, ^name, beam_data, _exports} = Module.create(name, impl_quoted, spec.location)
+    :code.load_binary(name, ~c"", beam_data)
+    # Code.compiler_options(ignore_module_conflict: false)
     if(true, do: name.__tests_pex__([])) # TODO: Make this configurable
     end
     :ok
@@ -811,7 +824,7 @@ defmodule ProtocolEx do
         load_abstract_from_impls(spec, pname, {name, 1, ast_head}, [], returning)
       {name, arity, ast_head} ->
         args = Macro.generate_arguments(length(get_args_from_head(ast_head)), __MODULE__)
-        head_args = Enum.map(args, &{:=, [generated: true], [@no_match, &1]})
+        head_args = args # head_args = Enum.map(args, &{:=, [generated: true], [@no_match, &1]})
         ast_head = replace_head_args_with(ast_head, head_args)
         ast_head = remove_guards(ast_head)
         body =

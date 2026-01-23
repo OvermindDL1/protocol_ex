@@ -1,4 +1,4 @@
 %{
-  "dialyxir": {:hex, :dialyxir, "1.0.0-rc.3", "774306f84973fc3f1e2e8743eeaa5f5d29b117f3916e5de74c075c02f1b8ef55", [:mix], [], "hexpm"},
-  "stream_data": {:hex, :stream_data, "0.4.2", "fa86b78c88ec4eaa482c0891350fcc23f19a79059a687760ddcf8680aac2799b", [:mix], [], "hexpm"},
+  "dialyxir": {:hex, :dialyxir, "1.0.0-rc.3", "774306f84973fc3f1e2e8743eeaa5f5d29b117f3916e5de74c075c02f1b8ef55", [:mix], [], "hexpm", "ddde98a783cec47d1b0ffaf5a0d5fbe09e90e1ac2d28452eefa6f72aac072c5a"},
+  "stream_data": {:hex, :stream_data, "0.4.2", "fa86b78c88ec4eaa482c0891350fcc23f19a79059a687760ddcf8680aac2799b", [:mix], [], "hexpm", "54d6bf6f1e5e27fbf4a7784a2bffbb993446d0efd079debca0f27bf859c0d1cf"},
 }
